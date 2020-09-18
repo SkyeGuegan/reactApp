@@ -9,7 +9,7 @@ function App() {
         <h1>Skye's Website</h1>
         <img src={logo} className="App-logo" alt="logo" />
         <p>
-          I'm trying <br/>
+          Hiiiiiiiiiiiiiiii <br/>
           Edit <code>src/App.js</code> and save to reload.
         </p>
         <a
