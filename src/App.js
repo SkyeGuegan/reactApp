@@ -10,7 +10,7 @@ function App() {
         <h1>Skye's Website</h1>
         <img src={logo} className="App-logo" alt="logo" />
         <p>
-          Hiiiiiiiiiiiiiiii
+          Hiiiiiiiiiiiiiii
         </p>
       </header>
       <AmplifySignOut />    
