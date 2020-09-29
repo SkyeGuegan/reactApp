@@ -1,32 +1,12 @@
-/*import React from 'react';
-import logo from './logo.svg';
-import './App.css';
-import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react'
-
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Skye's Website</h1>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Hiiiiiiiiiiiiiii
-        </p>
-      </header>
-      <AmplifySignOut />
-    </div>
-  );
-}
-
-//export default App;
-export default withAuthenticator(App);
-*/
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { API } from 'aws-amplify';
 import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react';
 import { listNotes } from './graphql/queries';
 import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } from './graphql/mutations';
+
+import Table from 'react-bootstrap/Table';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const initialFormState = { name: '', description: '' }
 
@@ -58,7 +38,10 @@ function App() {
 
   return (
     <div className="App">
+      {/*
       <h1>My Notes App</h1>
+      <div className="App">
+      </div>
       <input
         onChange={e => setFormData({ ...formData, 'name': e.target.value})}
         placeholder="Note name"
@@ -81,6 +64,67 @@ function App() {
           ))
         }
       </div>
+      */}
+      <header className="App-header">
+      <h1>The Scoreboard</h1>
+      </header>
+      <div style={{padding: "10px"}}>
+      <Table striped bordered>
+        <thead>
+    <tr>
+      <th>Game</th>
+      <th>SG</th>
+      <th>NI</th>
+      <th>MG</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Settlers of Catan</td>
+      <td>3</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>Puerto Rico</td>
+      <td>0</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>Dominion</td>
+      <td>0</td>
+      <td>1</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>Formula D</td>
+      <td>0</td>
+      <td>1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>Small World</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.5</td>
+    </tr><tr>
+      <td>Ticket To Ride</td>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr style={{backgroundColor: "#282c34", color: "white"}}>
+      <td>Total Wins</td>
+      <td>5</td>
+      <td>2</td>
+      <td>3.5</td>
+    </tr>
+  </tbody>
+</Table>
+</div>
+
+
       <AmplifySignOut />
     </div>
   );
