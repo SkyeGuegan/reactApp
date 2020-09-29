@@ -11,7 +11,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 const initialFormState = { name: '', description: '' }
 
 function App() {
-  const [notes, setNotes] = useState([]);
+/*  const [notes, setNotes] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ function App() {
     const newNotesArray = notes.filter(note => note.id !== id);
     setNotes(newNotesArray);
     await API.graphql({ query: deleteNoteMutation, variables: { input: { id } }});
-  }
+  }*/
 
   return (
     <div className="App">
