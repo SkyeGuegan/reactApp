@@ -7,10 +7,11 @@ import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } fr
 
 import Table from 'react-bootstrap/Table';
 import 'bootstrap/dist/css/bootstrap.min.css';
-{/*
+
 const initialFormState = { name: '', description: '' }
 
 function App() {
+  {/*
   const [notes, setNotes] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
 
