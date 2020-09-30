@@ -7,7 +7,7 @@ import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } fr
 
 import Table from 'react-bootstrap/Table';
 import 'bootstrap/dist/css/bootstrap.min.css';
-
+{/*
 const initialFormState = { name: '', description: '' }
 
 function App() {
@@ -34,9 +34,10 @@ function App() {
     const newNotesArray = notes.filter(note => note.id !== id);
     setNotes(newNotesArray);
     await API.graphql({ query: deleteNoteMutation, variables: { input: { id } }});
-  }
+  }*/}
 
   return (
+    {/*
     <div className="App">
       
       <h1>My Notes App</h1>
@@ -64,7 +65,7 @@ function App() {
           ))
         }
       </div>
-      {/*}
+      */}
       <header className="App-header">
       <h1>The Scoreboard</h1>
       </header>
@@ -122,7 +123,7 @@ function App() {
     </tr>
   </tbody>
 </Table>
-      </div>*/}
+      </div>
 
 
       <AmplifySignOut />
