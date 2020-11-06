@@ -1,5 +1,7 @@
 import React from 'react';
+
 import './App.css';
+//import { Link } from 'react-router-dom';
 
 import Table from 'react-bootstrap/Table';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -19,36 +21,37 @@ return(
 </thead>
 <tbody>
 <tr>
-<td>Settlers of Catan</td>
+<td><a href={"https://www.catan.com/#start"}>Settlers of Catan</a></td>
 <td>3</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr>
-<td>Puerto Rico</td>
+<td><a href={"https://boardgamegeek.com/boardgame/3076/puerto-rico"}>Puerto Rico</a></td>
+<td></td>
 <td>0</td>
 <td>0</td>
 <td>1</td>
 </tr>
 <tr>
-<td>Dominion</td>
+<td><a href={"https://dominionstrategy.com/"}>Dominion</a></td>
 <td>0</td>
 <td>1</td>
 <td>1</td>
 </tr>
 <tr>
-<td>Formula D</td>
+<td><a href={"https://www.tabletopgaming.co.uk/reviews/formula-d-review/"}>Formula D</a></td>
 <td>0</td>
 <td>1</td>
 <td>0</td>
 </tr>
 <tr>
-<td>Small World</td>
+<td><a href={"https://www.daysofwonder.com/smallworld/en/"}>Small World</a></td>
 <td>1</td>
 <td>0</td>
 <td>1.5</td>
 </tr><tr>
-<td>Ticket To Ride</td>
+<td><a href={"https://www.daysofwonder.com/tickettoride/en/usa/"}>Ticket To Ride</a></td>
 <td>1</td>
 <td>0</td>
 <td>0</td>
