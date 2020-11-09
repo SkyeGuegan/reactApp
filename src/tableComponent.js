@@ -28,7 +28,6 @@ return(
 </tr>
 <tr>
 <td><a href={"https://boardgamegeek.com/boardgame/3076/puerto-rico"}>Puerto Rico</a></td>
-<td></td>
 <td>0</td>
 <td>0</td>
 <td>1</td>
