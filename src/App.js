@@ -35,7 +35,7 @@ function App() {
       <header className="App-header">
       <h1>The Scoreboard</h1>
       {(authState === AuthState.SignedIn && user)?<h3>Hello, {user.username}</h3>
-      :<button onClick={handleClick}>{(showSignIn===1)?"Cancel":"Sign IN"}</button>
+      :<button onClick={handleClick}>{(showSignIn===1)?"Back To Table":"Sign IN"}</button>
       }
       </header>
       {(showSignIn===0 || (authState === AuthState.SignedIn && user))?
