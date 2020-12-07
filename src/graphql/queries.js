@@ -5,9 +5,10 @@ export const getScore = /* GraphQL */ `
   query GetScore($id: ID!) {
     getScore(id: $id) {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }
@@ -22,9 +23,10 @@ export const listScores = /* GraphQL */ `
     listScores(filter: $filter, limit: $limit, nextToken: $nextToken) {
       items {
         id
-        name
         game
-        score
+        sgScore
+        niScore
+        mgScore
         createdAt
         updatedAt
       }

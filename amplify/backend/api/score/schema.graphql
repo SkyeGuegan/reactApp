@@ -1,5 +1,6 @@
 type Score @model {
-  name: String!
   game: String!
-  score: Int!
+  sgScore: Int!
+  niScore: Int!
+  mgScore: Int!
 }

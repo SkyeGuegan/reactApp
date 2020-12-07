@@ -8,9 +8,10 @@ export const createScore = /* GraphQL */ `
   ) {
     createScore(input: $input, condition: $condition) {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }
@@ -23,9 +24,10 @@ export const updateScore = /* GraphQL */ `
   ) {
     updateScore(input: $input, condition: $condition) {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }
@@ -38,9 +40,10 @@ export const deleteScore = /* GraphQL */ `
   ) {
     deleteScore(input: $input, condition: $condition) {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }

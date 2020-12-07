@@ -5,9 +5,10 @@ export const onCreateScore = /* GraphQL */ `
   subscription OnCreateScore {
     onCreateScore {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }
@@ -17,9 +18,10 @@ export const onUpdateScore = /* GraphQL */ `
   subscription OnUpdateScore {
     onUpdateScore {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }
@@ -29,9 +31,10 @@ export const onDeleteScore = /* GraphQL */ `
   subscription OnDeleteScore {
     onDeleteScore {
       id
-      name
       game
-      score
+      sgScore
+      niScore
+      mgScore
       createdAt
       updatedAt
     }
