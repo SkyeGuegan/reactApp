@@ -9,6 +9,7 @@ export const getScore = /* GraphQL */ `
       sgScore
       niScore
       mgScore
+      fourScore
       createdAt
       updatedAt
     }
@@ -27,6 +28,7 @@ export const listScores = /* GraphQL */ `
         sgScore
         niScore
         mgScore
+        fourScore
         createdAt
         updatedAt
       }

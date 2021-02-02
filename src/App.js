@@ -3,8 +3,7 @@ import './App.css';
 import { API } from 'aws-amplify';
 import { AmplifySignOut, AmplifyAuthenticator, AmplifySignIn  } from '@aws-amplify/ui-react';
 import { listScores } from './graphql/queries';
-import { createScore as createScoreMutation, deleteScore as deleteScoreMutation } from './graphql/mutations';
-
+import { createScore as createScoreMutation, deleteScore as deleteScoreMutation, updateScore as updateScoreMutation } from './graphql/mutations';
 import { AuthState, onAuthUIStateChange } from '@aws-amplify/ui-components';
 import TableComponent from './tableComponent';
 
@@ -40,12 +39,29 @@ function App() {
       setFormData(initialFormState);
     }
   
-    async function deleteScore({ game }) {
-      console.log(game)
-      const newScoresArray = scores.filter(score => score.game !== game);
+    async function deleteScore({ id }) {
+      const newScoresArray = scores.filter(score => score.id !== id);
       setScores(newScoresArray);
-      await API.graphql({ query: deleteScoreMutation, variables: { input: { game } }});
+      console.log(id);
+      await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }});
     }
+
+    /*async function deleteNote({ id }) {
+      const newNotesArray = notes.filter(note => note.id !== id);
+      setNotes(newNotesArray);
+      await API.graphql({ query: deleteNoteMutation, variables: { input: { id } }});
+    }*/
+
+    /*async function updateScore(score, pScore) {
+      console.log(score);
+      console.log(pScore);
+      //const newScoresArray = scores.map(score => (score.game === game)?score.pScore+1:null);
+      //const newScoresArray = scores.map(score => score.pScore+1);
+      const newScoresArray = scores.filter(score => score.game !== score.game);
+      console.log(newScoresArray);
+      setScores(newScoresArray);
+      await API.graphql({ query: updateScoreMutation, variables: { input: score}});
+    }*/
 
     function handleClick(){
       if(showSignIn===1){
@@ -101,8 +117,13 @@ function App() {
           <div style={{marginBottom: 30}}>
             {
               scores.map(score => (
-                <div key={score.game}>
-                  <h2>{score.game} {score.sgScore} {score.niScore} {score.mgScore}</h2>
+                <div key={score.id || score.game}>
+                  <h2>
+                  {score.id}
+                  {score.game} 
+                  {score.sgScore}{/*<button onClick={() => updateScore(score, 'sgScore')}>Add Score</button>*/}
+                  {score.niScore} 
+                  {score.mgScore}</h2>
                   <button onClick={() => deleteScore(score)}>Delete Score</button>
                 </div>
               ))

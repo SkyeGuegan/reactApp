@@ -8,7 +8,7 @@
     }
   },
   "api": {
-    "score": {
+    "reactapp": {
       "service": "AppSync",
       "providerPlugin": "awscloudformation",
       "output": {
@@ -17,7 +17,7 @@
             "authenticationType": "API_KEY",
             "apiKeyConfig": {
               "apiKeyExpirationDays": 7,
-              "description": "key"
+              "description": "demo"
             }
           },
           "additionalAuthenticationProviders": []

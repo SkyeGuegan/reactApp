@@ -12,6 +12,7 @@ export const createScore = /* GraphQL */ `
       sgScore
       niScore
       mgScore
+      fourScore
       createdAt
       updatedAt
     }
@@ -28,6 +29,7 @@ export const updateScore = /* GraphQL */ `
       sgScore
       niScore
       mgScore
+      fourScore
       createdAt
       updatedAt
     }
@@ -44,6 +46,7 @@ export const deleteScore = /* GraphQL */ `
       sgScore
       niScore
       mgScore
+      fourScore
       createdAt
       updatedAt
     }
