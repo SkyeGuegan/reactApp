@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect} from 'react';
 import './App.css';
 import { API } from 'aws-amplify';
 import { AmplifySignOut, AmplifyAuthenticator, AmplifySignIn  } from '@aws-amplify/ui-react';
@@ -6,6 +6,9 @@ import { listScores } from './graphql/queries';
 import { createScore as createScoreMutation, deleteScore as deleteScoreMutation, updateScore as updateScoreMutation } from './graphql/mutations';
 import { AuthState, onAuthUIStateChange } from '@aws-amplify/ui-components';
 import TableComponent from './tableComponent';
+import Amplify from 'aws-amplify';
+import config from './aws-exports';
+Amplify.configure(config);
 
 const initialFormState = { game: '', sgScore: '', niScore: '', mgScore: '' }
 
@@ -15,6 +18,7 @@ function App() {
     const [showSignIn, setShowSignIn] = React.useState(0);
     const [scores, setScores] = useState([]);
     const [formData, setFormData] = useState(initialFormState);
+    const [loadingScores, setLoadingScores] = useState([1]);
 
     React.useEffect(() => {
         return onAuthUIStateChange((nextAuthState, authData) => {
@@ -25,11 +29,12 @@ function App() {
 
     useEffect(() => {
       fetchScores();
-    }, []);
+    }, [formData]);
 
     async function fetchScores() {
       const apiData = await API.graphql({ query: listScores });
       setScores(apiData.data.listScores.items);
+      setLoadingScores(0);
     }
 
     async function createScore() {
@@ -42,7 +47,6 @@ function App() {
     async function deleteScore({ id }) {
       const newScoresArray = scores.filter(score => score.id !== id);
       setScores(newScoresArray);
-      console.log(id);
       await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }});
     }
 
@@ -81,7 +85,10 @@ function App() {
       </header>
       {(showSignIn===0 || (authState === AuthState.SignedIn && user))?
       <div>
-      <TableComponent />
+      <TableComponent 
+      scores = {scores}
+      loading = {loadingScores}
+      />
 
       </div>
       :
@@ -119,7 +126,6 @@ function App() {
               scores.map(score => (
                 <div key={score.id || score.game}>
                   <h2>
-                  {score.id}
                   {score.game} 
                   {score.sgScore}{/*<button onClick={() => updateScore(score, 'sgScore')}>Add Score</button>*/}
                   {score.niScore} 

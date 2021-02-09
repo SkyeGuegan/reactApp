@@ -1,15 +1,26 @@
 import React from 'react';
-
+import Spinner from 'react-bootstrap/Spinner';
 import './App.css';
 //import { Link } from 'react-router-dom';
 
 import Table from 'react-bootstrap/Table';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-function tableComponent() {
+function tableComponent(props) {
 
+  //console.log(props.scores)
+  //const scoreData = props.scores
+  //console.log(props.scores.length());
+  //console.log(props.loading);
+  //console.log(scoreData);
+  //console.log(scoreData[0]);
+  
 return(
-<div style={{padding: "10px"}}>
+  (props.loading)?
+  <Spinner animation="border" role="status">
+  <span className="sr-only">Loading...</span>
+</Spinner>
+:<div style={{padding: "10px"}}>
 <Table striped bordered>
   <thead>
 <tr>
@@ -20,6 +31,16 @@ return(
 </tr>
 </thead>
 <tbody>
+{props.scores.map(score => (
+  <tr>
+  <td>{score.game}</td>
+  <td>{score.sgScore}</td>
+  <td>{score.niScore}</td>
+  <td>{score.mgScore}</td>
+  </tr>
+  ))}
+  
+{/*
 <tr>
 <td><a href={"https://www.catan.com/#start"}>Settlers of Catan</a></td>
 <td>3</td>
@@ -60,7 +81,7 @@ return(
 <td>5</td>
 <td>2</td>
 <td>3.5</td>
-</tr>
+</tr>*/}
 </tbody>
 </Table>
 </div>
