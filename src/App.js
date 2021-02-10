@@ -98,7 +98,7 @@ function App() {
       </AmplifyAuthenticator>
       </div>
       }
-      {(authState === AuthState.SignedIn && user)?
+      {(authState === AuthState.SignedIn && user && user.username ==="sguegan")?
       <div> 
            <input
             onChange={e => setFormData({ ...formData, 'game': e.target.value})}
@@ -137,6 +137,7 @@ function App() {
           </div>
       <AmplifySignOut onClick={handleClick}/>
       </div>
+      :(authState === AuthState.SignedIn && user)? <h3>Hello, {user.username} you are not authorized to enter data</h3>
       :null
       }
 
