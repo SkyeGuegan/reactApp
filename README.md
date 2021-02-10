@@ -6,7 +6,7 @@ Changes to come:
 - Add a Total Wins row
 - Highlight the player with the most wins in a game
 - Restrict what a logged in user can do 
-- Limit how can log in
+- Limit how someone can log in
 - Allowed certain users to update the scoreboard
 - Add links to game website for each game
 
