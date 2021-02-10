@@ -3,12 +3,12 @@ Link to Website: https://master.d1uiq2n8l3hr2t.amplifyapp.com/
 
 ### February 2021
 Changes to come:
-    - Add a Total Wins row
-    - Highlight the player with the most wins in a game
-    - Restrict what a logged in user can do 
-    - Limit how can log in
-    - Allowed certain users to update the scoreboard
-    - Add links to game website for each game
+- Add a Total Wins row
+- Highlight the player with the most wins in a game
+- Restrict what a logged in user can do 
+- Limit how can log in
+- Allowed certain users to update the scoreboard
+- Add links to game website for each game
 
 ## Starting README
 
