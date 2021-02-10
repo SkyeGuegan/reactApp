@@ -10,6 +10,8 @@ Changes to come:
 - Allowed certain users to update the scoreboard
 - Add links to game website for each game
 
+![Screenshot](/pictures/hompage_2-21.png)
+
 ## Starting README
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
