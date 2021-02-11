@@ -8,12 +8,62 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 function tableComponent(props) {
 
-  //console.log(props.scores)
-  //const scoreData = props.scores
-  //console.log(props.scores.length());
-  //console.log(props.loading);
-  //console.log(scoreData);
-  //console.log(scoreData[0]);
+  function gameRow(score){
+    let sgWeight="normal"; 
+    let niWeight="normal";
+    let mgWeight="normal";
+    
+      if(score.sgScore>score.niScore&&score.sgScore>score.mgScore){
+        sgWeight = "bold";
+      }else if(score.niScore>score.sgScore&&score.niScore>score.mgScore){
+        niWeight = "bold";
+      }else if(score.mgScore>score.niScore&&score.mgScore>score.sgScore){
+        mgWeight= "bold";
+      }   
+      return(
+        <tr>
+        <td>{score.game}</td>
+        <td style={{fontWeight:sgWeight}}>{score.sgScore}</td>
+        <td style={{fontWeight:niWeight}}>{score.niScore}</td>
+        <td style={{fontWeight:mgWeight}}>{score.mgScore}</td>
+        </tr>
+      )
+  }
+
+  function totalRow(){
+    let sgTotal = 0;
+    let niTotal = 0;
+    let mgTotal = 0;
+    let sgWeight="normal"; 
+    let niWeight="normal";
+    let mgWeight="normal";
+    let sgColor="white"; 
+    let niColor="white";
+    let mgColor="white";
+    props.scores.map(score => {
+      sgTotal = score.sgScore + sgTotal;
+      niTotal = score.niScore + niTotal;
+      mgTotal = score.mgScore + mgTotal;})
+      if(sgTotal>niTotal&&sgTotal>mgTotal){
+        sgWeight = "bold";
+        sgColor = "gold";
+      }else if(niTotal>sgTotal&&niTotal>mgTotal){
+        niWeight = "bold";
+        niColor = "gold";
+      }else if(mgTotal>niTotal&&mgTotal>sgTotal){
+        mgWeight= "bold";
+        mgColor = "gold";
+      }  
+
+    return(
+      <tr style={{backgroundColor: "#282c34", color: "white"}}>
+      <td>Total Wins</td>
+      <td style={{fontWeight:sgWeight, color:sgColor}}>{sgTotal}</td>
+      <td style={{fontWeight:niWeight, color:niColor}}>{niTotal}</td>
+      <td style={{fontWeight:mgWeight, color:mgColor}}>{mgTotal}</td>
+      </tr>
+    )
+  }
   
 return(
   (props.loading)?
@@ -31,15 +81,16 @@ return(
 </tr>
 </thead>
 <tbody>
-{props.scores.map(score => (
+{props.scores.map(score => (gameRow(score)))
+  /*props.scores.map(score => (
   <tr>
-  <td>{score.game}</td>
+  <td class="font-weight-bold">{score.game}</td>
   <td>{score.sgScore}</td>
   <td>{score.niScore}</td>
   <td>{score.mgScore}</td>
   </tr>
-  ))}
-  
+  ))*/}
+  {totalRow()}
 {/*
 <tr>
 <td><a href={"https://www.catan.com/#start"}>Settlers of Catan</a></td>
