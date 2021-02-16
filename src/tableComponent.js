@@ -13,15 +13,17 @@ function tableComponent(props) {
     let niWeight="normal";
     let mgWeight="normal";
     
-      if(score.sgScore>score.niScore&&score.sgScore>score.mgScore){
+      if(score.sgScore>=score.niScore&&score.sgScore>=score.mgScore){
         sgWeight = "bold";
-      }else if(score.niScore>score.sgScore&&score.niScore>score.mgScore){
+      }
+      if(score.niScore>=score.sgScore&&score.niScore>=score.mgScore){
         niWeight = "bold";
-      }else if(score.mgScore>score.niScore&&score.mgScore>score.sgScore){
+      }
+      if(score.mgScore>=score.niScore&&score.mgScore>=score.sgScore){
         mgWeight= "bold";
       }   
       return(
-        <tr>
+        <tr key={score.game}>
         <td>{score.game}</td>
         <td style={{fontWeight:sgWeight}}>{score.sgScore}</td>
         <td style={{fontWeight:niWeight}}>{score.niScore}</td>
@@ -40,21 +42,22 @@ function tableComponent(props) {
     let sgColor="white"; 
     let niColor="white";
     let mgColor="white";
-    props.scores.map(score => {
+    props.scores.forEach(score => {
       sgTotal = score.sgScore + sgTotal;
       niTotal = score.niScore + niTotal;
       mgTotal = score.mgScore + mgTotal;})
-      if(sgTotal>niTotal&&sgTotal>mgTotal){
+      if(sgTotal>=niTotal&&sgTotal>=mgTotal){
         sgWeight = "bold";
         sgColor = "gold";
-      }else if(niTotal>sgTotal&&niTotal>mgTotal){
+      }
+      if(niTotal>=sgTotal&&niTotal>=mgTotal){
         niWeight = "bold";
         niColor = "gold";
-      }else if(mgTotal>niTotal&&mgTotal>sgTotal){
+      }
+      if(mgTotal>=niTotal&&mgTotal>=sgTotal){
         mgWeight= "bold";
         mgColor = "gold";
       }  
-
     return(
       <tr style={{backgroundColor: "#282c34", color: "white"}}>
       <td>Total Wins</td>
@@ -81,6 +84,7 @@ return(
 </tr>
 </thead>
 <tbody>
+
 {props.scores.map(score => (gameRow(score)))
   /*props.scores.map(score => (
   <tr>

@@ -1,7 +1,22 @@
 ## The Scoreboard
 Link to Website: https://master.d1uiq2n8l3hr2t.amplifyapp.com/
 
-### February 2021
+### Second Update
+Added Features:
+- Add a Total Wins row
+- The player with the most Total wins is now Gold
+- Highlight the player with the most wins in a game
+- Restrict what a logged in user can do 
+- Allows certain users to update the scoreboard, Add or subtract wins
+
+Changes to come:
+- Limit how someone can log in
+- Add links to game website for each game
+- Add a Games played Catagory 
+- Style changes for logged in Admin
+
+
+### First Update
 Changes to come:
 - Add a Total Wins row
 - Highlight the player with the most wins in a game

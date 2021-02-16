@@ -50,22 +50,36 @@ function App() {
       await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }});
     }
 
-    /*async function deleteNote({ id }) {
-      const newNotesArray = notes.filter(note => note.id !== id);
-      setNotes(newNotesArray);
-      await API.graphql({ query: deleteNoteMutation, variables: { input: { id } }});
-    }*/
-
-    /*async function updateScore(score, pScore) {
-      console.log(score);
-      console.log(pScore);
-      //const newScoresArray = scores.map(score => (score.game === game)?score.pScore+1:null);
-      //const newScoresArray = scores.map(score => score.pScore+1);
-      const newScoresArray = scores.filter(score => score.game !== score.game);
+    async function updateScore(updateScore,player,action) {
+      console.log(scores);
+      let updatedScoreMap = new Map()
+      updatedScoreMap['id']=updateScore.id;
+      updatedScoreMap['game']=updateScore.game;
+      updatedScoreMap['sgScore']=updateScore.sgScore;
+      updatedScoreMap['niScore']=updateScore.niScore;
+      updatedScoreMap['mgScore']=updateScore.mgScore;      
+      if(action==='plus'){
+        if(player==="sg"){
+          updatedScoreMap['sgScore']=updateScore.sgScore+1;
+        }else if(player === "ni"){
+          updatedScoreMap['niScore']=updateScore.niScore+1;
+        }else{
+          updatedScoreMap['mgScore']=updateScore.mgScore+1;
+        }
+      }else{
+        if(player==="sg"){
+          updatedScoreMap['sgScore']=updateScore.sgScore-1;
+        }else if(player === "ni"){
+          updatedScoreMap['niScore']=updateScore.niScore-1;
+        }else{
+          updatedScoreMap['mgScore']=updateScore.mgScore-1;
+        }
+      }
+      const newScoresArray = scores.filter(score => score.id !== updateScore.id);
+      await API.graphql({ query: updateScoreMutation, variables: { input: updatedScoreMap }});
+      setScores([ ...newScoresArray,updatedScoreMap ]);
       console.log(newScoresArray);
-      setScores(newScoresArray);
-      await API.graphql({ query: updateScoreMutation, variables: { input: score}});
-    }*/
+    }
 
     function handleClick(){
       if(showSignIn===1){
@@ -74,6 +88,19 @@ function App() {
       setShowSignIn(1)
       }
     }
+
+    scores.sort(function(a, b) {
+    // ignore upper and lowercase
+    var gameA = a.game.toUpperCase(); 
+    var gameB = b.game.toUpperCase(); 
+    if (gameA < gameB) {
+      return -1;
+    }
+    if (gameA > gameB) {
+      return 1;
+    }
+    return 0;
+  })
 
   return (
     <div className="App">
@@ -127,9 +154,10 @@ function App() {
                 <div key={score.id || score.game}>
                   <h2>
                   {score.game} 
-                  {score.sgScore}{/*<button onClick={() => updateScore(score, 'sgScore')}>Add Score</button>*/}
-                  {score.niScore} 
-                  {score.mgScore}</h2>
+                  {<button onClick={() => updateScore(score, 'sg','plus')}>+</button>}{score.sgScore}{<button onClick={() => updateScore(score, 'sg','minus')}>-</button>}
+                  {<button onClick={() => updateScore(score, 'ni','plus')}>+</button>}{score.niScore}{<button onClick={() => updateScore(score, 'ni','minus')}>-</button>}
+                  {<button onClick={() => updateScore(score, 'mg','plus')}>+</button>}{score.mgScore}{<button onClick={() => updateScore(score, 'mg','minus')}>-</button>}
+                  </h2>
                   <button onClick={() => deleteScore(score)}>Delete Score</button>
                 </div>
               ))
