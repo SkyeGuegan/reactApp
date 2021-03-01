@@ -1,5 +1,4 @@
 ## The Scoreboard
-Link to Website: https://master.d1uiq2n8l3hr2t.amplifyapp.com/
 
 ### Second Update
 Added Features:
