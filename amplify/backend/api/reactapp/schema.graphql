@@ -4,5 +4,5 @@ type Score @model {
   sgScore: Float!
   niScore: Float!
   mgScore: Float!
-  fourScore: Float
+  fScore: Float
 }
