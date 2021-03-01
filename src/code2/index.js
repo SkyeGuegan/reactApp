@@ -1,16 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import '../index.css';
-import Test2 from '../Test2';
-import * as serviceWorker from '../serviceWorker';
-import Amplify from 'aws-amplify';
-import config from '../aws-exports';
-Amplify.configure(config);
+import './index.css';
+import App from './App';
+import * as serviceWorker from './serviceWorker';
+
+
 
 ReactDOM.render(
-  <React.StrictMode>
-    <Test2/>
-  </React.StrictMode>,
+    <App/>,
   document.getElementById('root')
 );
 

@@ -1,8 +1,8 @@
 {
-    "identityPoolName": "reactappd12783dc_identitypool_d12783dc",
+    "identityPoolName": "reactapp547db2fd_identitypool_547db2fd",
     "allowUnauthenticatedIdentities": false,
-    "resourceNameTruncated": "reactad12783dc",
-    "userPoolName": "reactappd12783dc_userpool_d12783dc",
+    "resourceNameTruncated": "reacta547db2fd",
+    "userPoolName": "reactapp547db2fd_userpool_547db2fd",
     "autoVerifiedAttributes": [
         "email"
     ],
@@ -28,10 +28,10 @@
     "userpoolClientReadAttributes": [
         "email"
     ],
-    "userpoolClientLambdaRole": "reactad12783dc_userpoolclient_lambda_role",
+    "userpoolClientLambdaRole": "reacta547db2fd_userpoolclient_lambda_role",
     "userpoolClientSetAttributes": false,
-    "sharedId": "d12783dc",
-    "resourceName": "reactappd12783dc",
+    "sharedId": "547db2fd",
+    "resourceName": "reactapp547db2fd",
     "authSelections": "identityPoolAndUserPool",
     "authRoleArn": {
         "Fn::GetAtt": [

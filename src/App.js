@@ -6,9 +6,11 @@ import { listScores } from './graphql/queries';
 import { createScore as createScoreMutation, deleteScore as deleteScoreMutation, updateScore as updateScoreMutation } from './graphql/mutations';
 import { AuthState, onAuthUIStateChange } from '@aws-amplify/ui-components';
 import TableComponent from './tableComponent';
-import Amplify from 'aws-amplify';
-import config from './aws-exports';
-Amplify.configure(config);
+import Amplify, { Auth } from 'aws-amplify';
+import awsconfig from './aws-exports';
+
+Amplify.configure(awsconfig);
+Auth.configure(awsconfig);
 
 const initialFormState = { game: '', sgScore: '', niScore: '', mgScore: '' }
 
@@ -116,7 +118,6 @@ function App() {
       scores = {scores}
       loading = {loadingScores}
       />
-
       </div>
       :
       <div> 
@@ -166,10 +167,9 @@ function App() {
       <AmplifySignOut onClick={handleClick}/>
       </div>
       :(authState === AuthState.SignedIn && user)? <h3>Hello, {user.username} you are not authorized to enter data</h3>
-      :null
+          :null
       }
-
-    </div>
+      </div>
   );
 }
 
