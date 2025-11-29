@@ -13,7 +13,7 @@ Added Features:
 Changes to come:
 - Limit how someone can log in
 - Add links to game website for each game
-- Add a Games played Catagory 
+- Add a Games played Catagory
 - Style changes for logged in Admin
 
 
