@@ -7,7 +7,7 @@ Added Features:
 - Add a Total Wins row
 - The player with the most Total wins is now Gold
 - Highlight the player with the most wins in a game
-- Restrict what a logged in user can do 
+- Restrict what a logged in user can do
 - Allows certain users to update the scoreboard, Add or subtract wins
 
 Changes to come:
