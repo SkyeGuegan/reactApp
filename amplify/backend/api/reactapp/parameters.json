@@ -2,5 +2,5 @@
   "AppSyncApiName": "reactapp",
   "DynamoDBBillingMode": "PAY_PER_REQUEST",
   "DynamoDBEnableServerSideEncryption": false,
-  "APIKeyExpirationEpoch": 1764385200
+  "APIKeyExpirationEpoch": 1813470666
 }
