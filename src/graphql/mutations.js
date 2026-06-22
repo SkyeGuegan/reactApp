@@ -15,6 +15,7 @@ export const createScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -32,6 +33,7 @@ export const updateScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -49,6 +51,7 @@ export const deleteScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;

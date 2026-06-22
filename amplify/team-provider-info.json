@@ -13,7 +13,11 @@
     },
     "categories": {
       "auth": {
-        "reactapp547db2fd": {}
+        "reactapp547db2fd": {},
+        "userPoolGroups": {}
+      },
+      "api": {
+        "reactapp": {}
       }
     }
   }

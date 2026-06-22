@@ -12,6 +12,7 @@ export const getScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -31,8 +32,10 @@ export const listScores = /* GraphQL */ `
         fourScore
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;

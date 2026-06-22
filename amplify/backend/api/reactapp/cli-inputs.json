@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "serviceConfiguration": {
+    "serviceName": "AppSync",
+    "defaultAuthType": {
+      "mode": "API_KEY",
+      "expirationTime": 365,
+      "apiKeyExpirationDate": "2027-06-22T19:16:56.145Z",
+      "keyDescription": ""
+    },
+    "conflictResolution": {},
+    "apiName": "reactapp",
+    "additionalAuthTypes": [
+      {
+        "mode": "AMAZON_COGNITO_USER_POOLS",
+        "cognitoUserPoolId": "authreactapp547db2fd"
+      }
+    ]
+  }
+}

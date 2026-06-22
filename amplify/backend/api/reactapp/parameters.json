@@ -2,5 +2,12 @@
   "AppSyncApiName": "reactapp",
   "DynamoDBBillingMode": "PAY_PER_REQUEST",
   "DynamoDBEnableServerSideEncryption": false,
-  "APIKeyExpirationEpoch": 1813470666
+  "CreateAPIKey": 1,
+  "AuthCognitoUserPoolId": {
+    "Fn::GetAtt": [
+      "authreactapp547db2fd",
+      "Outputs.UserPoolId"
+    ]
+  },
+  "AuthModeLastUpdated": "2026-06-22T19:17:02.977Z"
 }
