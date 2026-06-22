@@ -20,7 +20,7 @@ function App() {
     const [showSignIn, setShowSignIn] = React.useState(0);
     const [scores, setScores] = useState([]);
     const [formData, setFormData] = useState(initialFormState);
-    const [loadingScores, setLoadingScores] = useState([1]);
+    const [loadingScores, setLoadingScores] = useState(true);
 
     React.useEffect(() => {
         return onAuthUIStateChange((nextAuthState, authData) => {
@@ -31,56 +31,64 @@ function App() {
 
     useEffect(() => {
       fetchScores();
-    }, [formData]);
+    }, []);
 
     async function fetchScores() {
-      const apiData = await API.graphql({ query: listScores });
-      setScores(apiData.data.listScores.items);
-      setLoadingScores(0);
+      try {
+        const apiData = await API.graphql({ query: listScores });
+        setScores(apiData.data.listScores.items);
+      } catch (err) {
+        console.error('Failed to load scores', err);
+      } finally {
+        setLoadingScores(false);
+      }
     }
 
     async function createScore() {
       if (!formData.game || !formData.sgScore || !formData.niScore || !formData.mgScore) return;
-      await API.graphql({ query: createScoreMutation, variables: { input: formData } });
-      setScores([ ...scores, formData ]);
-      setFormData(initialFormState);
-    }
-  
-    async function deleteScore({ id }) {
-      const newScoresArray = scores.filter(score => score.id !== id);
-      setScores(newScoresArray);
-      await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }});
+      const input = {
+        game: formData.game,
+        sgScore: Number(formData.sgScore),
+        niScore: Number(formData.niScore),
+        mgScore: Number(formData.mgScore),
+      };
+      try {
+        const result = await API.graphql({ query: createScoreMutation, variables: { input } });
+        setScores([ ...scores, result.data.createScore ]);
+        setFormData(initialFormState);
+      } catch (err) {
+        console.error('Failed to create score', err);
+      }
     }
 
-    async function updateScore(updateScore,player,action) {
-      console.log(scores);
-      let updatedScoreMap = new Map()
-      updatedScoreMap['id']=updateScore.id;
-      updatedScoreMap['game']=updateScore.game;
-      updatedScoreMap['sgScore']=updateScore.sgScore;
-      updatedScoreMap['niScore']=updateScore.niScore;
-      updatedScoreMap['mgScore']=updateScore.mgScore;      
-      if(action==='plus'){
-        if(player==="sg"){
-          updatedScoreMap['sgScore']=updateScore.sgScore+1;
-        }else if(player === "ni"){
-          updatedScoreMap['niScore']=updateScore.niScore+1;
-        }else{
-          updatedScoreMap['mgScore']=updateScore.mgScore+1;
-        }
-      }else{
-        if(player==="sg"){
-          updatedScoreMap['sgScore']=updateScore.sgScore-1;
-        }else if(player === "ni"){
-          updatedScoreMap['niScore']=updateScore.niScore-1;
-        }else{
-          updatedScoreMap['mgScore']=updateScore.mgScore-1;
-        }
+    async function deleteScore({ id }) {
+      const previousScores = scores;
+      setScores(scores.filter(score => score.id !== id));
+      try {
+        await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }});
+      } catch (err) {
+        console.error('Failed to delete score', err);
+        setScores(previousScores);
       }
-      const newScoresArray = scores.filter(score => score.id !== updateScore.id);
-      await API.graphql({ query: updateScoreMutation, variables: { input: updatedScoreMap }});
-      setScores([ ...newScoresArray,updatedScoreMap ]);
-      console.log(newScoresArray);
+    }
+
+    async function updateScore(score, player, action) {
+      const field = player === 'sg' ? 'sgScore' : player === 'ni' ? 'niScore' : 'mgScore';
+      const delta = action === 'plus' ? 1 : -1;
+      const input = {
+        id: score.id,
+        game: score.game,
+        sgScore: score.sgScore,
+        niScore: score.niScore,
+        mgScore: score.mgScore,
+        [field]: score[field] + delta,
+      };
+      try {
+        await API.graphql({ query: updateScoreMutation, variables: { input }});
+        setScores(scores.map(s => (s.id === score.id ? { ...s, ...input } : s)));
+      } catch (err) {
+        console.error('Failed to update score', err);
+      }
     }
 
     function handleClick(){
@@ -91,10 +99,10 @@ function App() {
       }
     }
 
-    scores.sort(function(a, b) {
+    const sortedScores = [...scores].sort(function(a, b) {
     // ignore upper and lowercase
-    var gameA = a.game.toUpperCase(); 
-    var gameB = b.game.toUpperCase(); 
+    var gameA = a.game.toUpperCase();
+    var gameB = b.game.toUpperCase();
     if (gameA < gameB) {
       return -1;
     }
@@ -114,8 +122,8 @@ function App() {
       </header>
       {(showSignIn===0 || (authState === AuthState.SignedIn && user))?
       <div>
-      <TableComponent 
-      scores = {scores}
+      <TableComponent
+      scores = {sortedScores}
       loading = {loadingScores}
       />
       </div>
@@ -134,16 +142,19 @@ function App() {
             value={formData.game}
           />
           <input
+            type="number"
             onChange={e => setFormData({ ...formData, 'sgScore': e.target.value})}
             placeholder="SG's score"
             value={formData.sgScore}
           />
           <input
+            type="number"
             onChange={e => setFormData({ ...formData, niScore: e.target.value})}
             placeholder="NI's score"
             value={formData.niScore}
           />
           <input
+            type="number"
             onChange={e => setFormData({ ...formData, mgScore: e.target.value})}
             placeholder="MG's score"
             value={formData.mgScore}
@@ -151,7 +162,7 @@ function App() {
           <button onClick={createScore}>Create Score</button>
           <div style={{marginBottom: 30}}>
             {
-              scores.map(score => (
+              sortedScores.map(score => (
                 <div key={score.id || score.game}>
                   <h2>
                   {score.game} 
