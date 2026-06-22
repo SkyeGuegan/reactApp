@@ -1,0 +1,34 @@
+## Authorize: admin Cognito group only (mirrors the @model write rules).
+#set( $groups = $util.defaultIfNull($ctx.identity.claims.get("cognito:groups"), []) )
+#if( !$groups.contains("admin") )
+  $util.unauthorized()
+#end
+
+## Only allow incrementing real, numeric score fields.
+#set( $allowedFields = ["sgScore", "niScore", "mgScore", "fourScore"] )
+#if( !$allowedFields.contains($ctx.args.field) )
+  $util.error("Invalid field: $ctx.args.field", "ValidationError")
+#end
+
+## Atomic DynamoDB increment. ADD treats a missing attribute as 0,
+## so this also handles a never-set fourScore. attribute_exists(id)
+## ensures we only update an existing row, never create one.
+{
+  "version": "2018-05-29",
+  "operation": "UpdateItem",
+  "key": {
+    "id": $util.dynamodb.toDynamoDBJson($ctx.args.id)
+  },
+  "update": {
+    "expression": "ADD #field :delta",
+    "expressionNames": {
+      "#field": "$ctx.args.field"
+    },
+    "expressionValues": {
+      ":delta": $util.dynamodb.toDynamoDBJson($ctx.args.delta)
+    }
+  },
+  "condition": {
+    "expression": "attribute_exists(id)"
+  }
+}

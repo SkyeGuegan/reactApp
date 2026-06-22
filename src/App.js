@@ -5,7 +5,8 @@ import { generateClient } from 'aws-amplify/api';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { listScores } from './graphql/queries';
-import { createScore as createScoreMutation, deleteScore as deleteScoreMutation, updateScore as updateScoreMutation } from './graphql/mutations';
+import { createScore as createScoreMutation, deleteScore as deleteScoreMutation } from './graphql/mutations';
+import { incrementScore as incrementScoreMutation } from './graphql/customMutations';
 import TableComponent from './tableComponent';
 import awsconfig from './aws-exports';
 
@@ -77,19 +78,23 @@ function Scoreboard() {
     async function updateScore(score, player, action) {
       const field = player === 'sg' ? 'sgScore' : player === 'ni' ? 'niScore' : 'mgScore';
       const delta = action === 'plus' ? 1 : -1;
-      const input = {
-        id: score.id,
-        game: score.game,
-        sgScore: score.sgScore,
-        niScore: score.niScore,
-        mgScore: score.mgScore,
-        [field]: score[field] + delta,
-      };
+      // Optimistically reflect the change, but keep the old list so we can
+      // roll back if the server rejects it.
+      const previousScores = scores;
+      setScores(scores.map(s => (s.id === score.id ? { ...s, [field]: s[field] + delta } : s)));
       try {
-        await client.graphql({ query: updateScoreMutation, variables: { input }, authMode: 'userPool' });
-        setScores(scores.map(s => (s.id === score.id ? { ...s, ...input } : s)));
+        // Atomic, server-side increment — no read-modify-write, so concurrent
+        // edits no longer clobber each other. Reconcile to the authoritative value.
+        const result = await client.graphql({
+          query: incrementScoreMutation,
+          variables: { id: score.id, field, delta },
+          authMode: 'userPool',
+        });
+        const updated = result.data.incrementScore;
+        setScores(prev => prev.map(s => (s.id === score.id ? { ...s, ...updated } : s)));
       } catch (err) {
         console.error('Failed to update score', err);
+        setScores(previousScores);
       }
     }
 
