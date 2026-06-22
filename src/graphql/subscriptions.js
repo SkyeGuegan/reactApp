@@ -12,6 +12,7 @@ export const onCreateScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -26,6 +27,7 @@ export const onUpdateScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -40,6 +42,7 @@ export const onDeleteScore = /* GraphQL */ `
       fourScore
       createdAt
       updatedAt
+      __typename
     }
   }
 `;

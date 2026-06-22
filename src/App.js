@@ -53,7 +53,7 @@ function App() {
         mgScore: Number(formData.mgScore),
       };
       try {
-        const result = await API.graphql({ query: createScoreMutation, variables: { input } });
+        const result = await API.graphql({ query: createScoreMutation, variables: { input }, authMode: 'AMAZON_COGNITO_USER_POOLS' });
         setScores([ ...scores, result.data.createScore ]);
         setFormData(initialFormState);
       } catch (err) {
@@ -65,7 +65,7 @@ function App() {
       const previousScores = scores;
       setScores(scores.filter(score => score.id !== id));
       try {
-        await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }});
+        await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }, authMode: 'AMAZON_COGNITO_USER_POOLS' });
       } catch (err) {
         console.error('Failed to delete score', err);
         setScores(previousScores);
@@ -84,7 +84,7 @@ function App() {
         [field]: score[field] + delta,
       };
       try {
-        await API.graphql({ query: updateScoreMutation, variables: { input }});
+        await API.graphql({ query: updateScoreMutation, variables: { input }, authMode: 'AMAZON_COGNITO_USER_POOLS' });
         setScores(scores.map(s => (s.id === score.id ? { ...s, ...input } : s)));
       } catch (err) {
         console.error('Failed to update score', err);

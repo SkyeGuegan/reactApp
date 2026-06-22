@@ -1,5 +1,12 @@
-type Score @model {
-  id:ID!
+type Score
+  @model
+  @auth(
+    rules: [
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: groups, groups: ["admin"] }
+    ]
+  ) {
+  id: ID!
   game: String!
   sgScore: Float!
   niScore: Float!
