@@ -92,6 +92,10 @@ type ScoreEvent
   # Cognito username of the admin who recorded this change. The migration
   # baseline rows use "migration".
   recordedBy: String
+  # Soft delete: set true to exclude a bogus event from graphs without hard
+  # deleting it (the row, and its audit trail, are preserved). Unset/false means
+  # active. Never hard-delete events — void them.
+  voided: Boolean
 }
 
 # Atomic, server-side increment of a single GameScore cell.

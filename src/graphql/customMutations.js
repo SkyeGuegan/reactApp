@@ -76,3 +76,14 @@ export const createScoreEvent = /* GraphQL */ `
     }
   }
 `;
+
+// Soft-delete (void) an event instead of hard-deleting it — pass
+// { id, voided: true }. For use by a future graph/admin UI; preserves history.
+export const updateScoreEvent = /* GraphQL */ `
+  mutation UpdateScoreEvent($input: UpdateScoreEventInput!) {
+    updateScoreEvent(input: $input) {
+      id
+      voided
+    }
+  }
+`;

@@ -53,6 +53,7 @@ export const listScoreEvents = /* GraphQL */ `
         gameName
         delta
         recordedBy
+        voided
         createdAt
       }
       nextToken
