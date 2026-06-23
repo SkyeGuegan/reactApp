@@ -37,7 +37,7 @@ if (!apiId || !region) {
 }
 
 const table = (model) => `${model}-${apiId}-${env}`;
-const T = { Score: table('Score'), Player: table('Player'), Game: table('Game'), GameScore: table('GameScore') };
+const T = { Score: table('Score'), Player: table('Player'), Game: table('Game'), GameScore: table('GameScore'), ScoreEvent: table('ScoreEvent') };
 
 console.log(`Region: ${region}   Env: ${env}`);
 console.log('Tables:', T);
@@ -103,7 +103,15 @@ for (const s of scores) {
 
 const playerItems = players.map(({ field, ...rest }) => rest);
 
-console.log(`\nWould create: ${playerItems.length} players, ${games.length} games, ${gameScores.length} game scores.`);
+// Baseline history: one immutable ScoreEvent per non-zero cell, delta = the
+// migrated total. This gives every wins-over-time line a defined origin and
+// keeps the invariant sum(ScoreEvent.delta) === GameScore.score. Zero cells
+// need no baseline (their running sum is already 0).
+const scoreEvents = gameScores
+  .filter((gs) => gs.score !== 0)
+  .map((gs) => ({ id: randomUUID(), gameId: gs.gameId, playerId: gs.playerId, delta: gs.score, __typename: 'ScoreEvent', ...stamp() }));
+
+console.log(`\nWould create: ${playerItems.length} players, ${games.length} games, ${gameScores.length} game scores, ${scoreEvents.length} baseline events.`);
 console.log('Players:', playerItems.map((p) => p.initials).join(', '));
 console.log('Sample scores:', gameScores.slice(0, 8).map((g) => g.score).join(', '));
 
@@ -113,7 +121,7 @@ if (!commit) {
 }
 
 // Safety: do not write into already-populated target tables unless --force.
-for (const m of ['Player', 'Game', 'GameScore']) {
+for (const m of ['Player', 'Game', 'GameScore', 'ScoreEvent']) {
   const existing = await scanAll(T[m]);
   if (existing.length && !force) {
     console.error(`ABORT: ${T[m]} already has ${existing.length} items. Re-run with --force to add anyway.`);
@@ -124,4 +132,5 @@ for (const m of ['Player', 'Game', 'GameScore']) {
 await batchPut(T.Player, playerItems);
 await batchPut(T.Game, games);
 await batchPut(T.GameScore, gameScores);
+await batchPut(T.ScoreEvent, scoreEvents);
 console.log('\nMigration committed. Reload the app to verify.');

@@ -13,6 +13,7 @@ import {
   createGameScore as createGameScoreMutation,
   deleteGameScore as deleteGameScoreMutation,
   incrementScore as incrementScoreMutation,
+  createScoreEvent as createScoreEventMutation,
 } from './graphql/customMutations';
 import TableComponent from './tableComponent';
 import awsconfig from './aws-exports';
@@ -128,6 +129,18 @@ function Scoreboard() {
         const res = await client.graphql({ query: incrementScoreMutation, variables: { id: cell.id, delta }, authMode: 'userPool' });
         const updated = res.data.incrementScore;
         setGameScores(prev => prev.map(gs => (gs.id === updated.id ? { ...gs, score: updated.score } : gs)));
+        // Append an immutable history row (fire-and-forget). The score change
+        // already succeeded, so a failed event is only a logged gap — not a
+        // reason to roll back the increment.
+        try {
+          await client.graphql({
+            query: createScoreEventMutation,
+            variables: { input: { gameId: cell.gameId, playerId: cell.playerId, delta } },
+            authMode: 'userPool',
+          });
+        } catch (eventErr) {
+          console.warn('Score updated but failed to log history event', eventErr);
+        }
       } catch (err) {
         console.error('Failed to update score', err);
         setGameScores(previous);

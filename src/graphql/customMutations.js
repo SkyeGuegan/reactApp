@@ -66,3 +66,13 @@ export const incrementScore = /* GraphQL */ `
     }
   }
 `;
+
+// Append-only history row, written alongside each increment so wins-over-time
+// can be reconstructed later. createdAt is set automatically.
+export const createScoreEvent = /* GraphQL */ `
+  mutation CreateScoreEvent($input: CreateScoreEventInput!) {
+    createScoreEvent(input: $input) {
+      id
+    }
+  }
+`;

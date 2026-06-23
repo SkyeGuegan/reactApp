@@ -39,3 +39,20 @@ export const listGameScores = /* GraphQL */ `
     }
   }
 `;
+
+// History feed for future wins-over-time graphs. Not consumed by the UI yet —
+// each event carries createdAt so the client can bucket/accumulate by time.
+export const listScoreEvents = /* GraphQL */ `
+  query ListScoreEvents($limit: Int, $nextToken: String) {
+    listScoreEvents(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        gameId
+        playerId
+        delta
+        createdAt
+      }
+      nextToken
+    }
+  }
+`;

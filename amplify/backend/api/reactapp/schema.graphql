@@ -66,6 +66,26 @@ type GameScore
   score: Float!
 }
 
+# Append-only ledger: one immutable row per score change (each +/- click, plus
+# a baseline row per cell written at migration time). GameScore.score stays the
+# fast "current total"; ScoreEvent is the source of truth for history, enabling
+# wins-over-time graphs. The automatic createdAt records WHEN each change
+# happened — order a player's events by createdAt and keep a running sum of
+# delta to reconstruct their score at any point in time.
+type ScoreEvent
+  @model
+  @auth(
+    rules: [
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: groups, groups: ["admin"] }
+    ]
+  ) {
+  id: ID!
+  gameId: ID!
+  playerId: ID!
+  delta: Float!
+}
+
 # Atomic, server-side increment of a single GameScore cell.
 # Backed by a custom DynamoDB UpdateItem ("ADD") resolver so concurrent +/-
 # edits no longer clobber each other (the old client-side read-modify-write
