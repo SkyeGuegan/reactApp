@@ -17,8 +17,14 @@ type Score
 # Atomic, server-side increment for a single score field.
 # Backed by a custom DynamoDB UpdateItem ("ADD") resolver so concurrent
 # +/- edits no longer clobber each other (the old client-side
-# read-modify-write was racy). Auth is enforced in the resolver VTL
-# (admin Cognito group only), matching the @model write rules above.
+# read-modify-write was racy).
+#
+# @aws_cognito_user_pools is required because the API's default auth mode is
+# API_KEY: without an explicit directive AppSync would only allow this field
+# via the API key, and the client calls it with the user pool. cognito_groups
+# restricts it to admins at the AppSync layer; the resolver VTL re-checks the
+# same group as defense in depth.
 type Mutation {
   incrementScore(id: ID!, field: String!, delta: Int!): Score
+    @aws_cognito_user_pools(cognito_groups: ["admin"])
 }
