@@ -49,7 +49,10 @@ export const listScoreEvents = /* GraphQL */ `
         id
         gameId
         playerId
+        playerInitials
+        gameName
         delta
+        recordedBy
         createdAt
       }
       nextToken

@@ -84,6 +84,14 @@ type ScoreEvent
   gameId: ID!
   playerId: ID!
   delta: Float!
+  # Denormalized labels snapshotted at write time so history survives a player
+  # or game being renamed or deleted (the id references may dangle, but a graph
+  # can still label the line).
+  playerInitials: String
+  gameName: String
+  # Cognito username of the admin who recorded this change. The migration
+  # baseline rows use "migration".
+  recordedBy: String
 }
 
 # Atomic, server-side increment of a single GameScore cell.

@@ -107,9 +107,21 @@ const playerItems = players.map(({ field, ...rest }) => rest);
 // migrated total. This gives every wins-over-time line a defined origin and
 // keeps the invariant sum(ScoreEvent.delta) === GameScore.score. Zero cells
 // need no baseline (their running sum is already 0).
+const initialsById = new Map(players.map((p) => [p.id, p.initials]));
+const nameById = new Map(games.map((g) => [g.id, g.name]));
 const scoreEvents = gameScores
   .filter((gs) => gs.score !== 0)
-  .map((gs) => ({ id: randomUUID(), gameId: gs.gameId, playerId: gs.playerId, delta: gs.score, __typename: 'ScoreEvent', ...stamp() }));
+  .map((gs) => ({
+    id: randomUUID(),
+    gameId: gs.gameId,
+    playerId: gs.playerId,
+    playerInitials: initialsById.get(gs.playerId),
+    gameName: nameById.get(gs.gameId),
+    delta: gs.score,
+    recordedBy: 'migration',
+    __typename: 'ScoreEvent',
+    ...stamp(),
+  }));
 
 console.log(`\nWould create: ${playerItems.length} players, ${games.length} games, ${gameScores.length} game scores, ${scoreEvents.length} baseline events.`);
 console.log('Players:', playerItems.map((p) => p.initials).join(', '));

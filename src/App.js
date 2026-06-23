@@ -131,11 +131,23 @@ function Scoreboard() {
         setGameScores(prev => prev.map(gs => (gs.id === updated.id ? { ...gs, score: updated.score } : gs)));
         // Append an immutable history row (fire-and-forget). The score change
         // already succeeded, so a failed event is only a logged gap — not a
-        // reason to roll back the increment.
+        // reason to roll back the increment. Labels are denormalized so the
+        // event survives the player/game being renamed or deleted.
         try {
+          const player = players.find(p => p.id === cell.playerId);
+          const game = games.find(g => g.id === cell.gameId);
           await client.graphql({
             query: createScoreEventMutation,
-            variables: { input: { gameId: cell.gameId, playerId: cell.playerId, delta } },
+            variables: {
+              input: {
+                gameId: cell.gameId,
+                playerId: cell.playerId,
+                playerInitials: player ? player.initials : null,
+                gameName: game ? game.name : null,
+                delta,
+                recordedBy: user ? user.username : null,
+              },
+            },
             authMode: 'userPool',
           });
         } catch (eventErr) {
