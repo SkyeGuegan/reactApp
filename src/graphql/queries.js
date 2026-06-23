@@ -1,44 +1,6 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
-export const getScore = /* GraphQL */ `
-  query GetScore($id: ID!) {
-    getScore(id: $id) {
-      id
-      game
-      sgScore
-      niScore
-      mgScore
-      fourScore
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const listScores = /* GraphQL */ `
-  query ListScores(
-    $filter: ModelScoreFilterInput
-    $limit: Int
-    $nextToken: String
-  ) {
-    listScores(filter: $filter, limit: $limit, nextToken: $nextToken) {
-      items {
-        id
-        game
-        sgScore
-        niScore
-        mgScore
-        fourScore
-        createdAt
-        updatedAt
-        __typename
-      }
-      nextToken
-      __typename
-    }
-  }
-`;
 export const getPlayer = /* GraphQL */ `
   query GetPlayer($id: ID!) {
     getPlayer(id: $id) {
@@ -124,6 +86,48 @@ export const listGameScores = /* GraphQL */ `
         gameId
         playerId
         score
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const getScoreEvent = /* GraphQL */ `
+  query GetScoreEvent($id: ID!) {
+    getScoreEvent(id: $id) {
+      id
+      gameId
+      playerId
+      delta
+      playerInitials
+      gameName
+      recordedBy
+      voided
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listScoreEvents = /* GraphQL */ `
+  query ListScoreEvents(
+    $filter: ModelScoreEventFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listScoreEvents(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        gameId
+        playerId
+        delta
+        playerInitials
+        gameName
+        recordedBy
+        voided
         createdAt
         updatedAt
         __typename

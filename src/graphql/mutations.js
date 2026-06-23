@@ -14,60 +14,6 @@ export const incrementScore = /* GraphQL */ `
     }
   }
 `;
-export const createScore = /* GraphQL */ `
-  mutation CreateScore(
-    $input: CreateScoreInput!
-    $condition: ModelScoreConditionInput
-  ) {
-    createScore(input: $input, condition: $condition) {
-      id
-      game
-      sgScore
-      niScore
-      mgScore
-      fourScore
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const updateScore = /* GraphQL */ `
-  mutation UpdateScore(
-    $input: UpdateScoreInput!
-    $condition: ModelScoreConditionInput
-  ) {
-    updateScore(input: $input, condition: $condition) {
-      id
-      game
-      sgScore
-      niScore
-      mgScore
-      fourScore
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
-export const deleteScore = /* GraphQL */ `
-  mutation DeleteScore(
-    $input: DeleteScoreInput!
-    $condition: ModelScoreConditionInput
-  ) {
-    deleteScore(input: $input, condition: $condition) {
-      id
-      game
-      sgScore
-      niScore
-      mgScore
-      fourScore
-      createdAt
-      updatedAt
-      __typename
-    }
-  }
-`;
 export const createPlayer = /* GraphQL */ `
   mutation CreatePlayer(
     $input: CreatePlayerInput!
@@ -194,6 +140,66 @@ export const deleteGameScore = /* GraphQL */ `
       gameId
       playerId
       score
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const createScoreEvent = /* GraphQL */ `
+  mutation CreateScoreEvent(
+    $input: CreateScoreEventInput!
+    $condition: ModelScoreEventConditionInput
+  ) {
+    createScoreEvent(input: $input, condition: $condition) {
+      id
+      gameId
+      playerId
+      delta
+      playerInitials
+      gameName
+      recordedBy
+      voided
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const updateScoreEvent = /* GraphQL */ `
+  mutation UpdateScoreEvent(
+    $input: UpdateScoreEventInput!
+    $condition: ModelScoreEventConditionInput
+  ) {
+    updateScoreEvent(input: $input, condition: $condition) {
+      id
+      gameId
+      playerId
+      delta
+      playerInitials
+      gameName
+      recordedBy
+      voided
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const deleteScoreEvent = /* GraphQL */ `
+  mutation DeleteScoreEvent(
+    $input: DeleteScoreEventInput!
+    $condition: ModelScoreEventConditionInput
+  ) {
+    deleteScoreEvent(input: $input, condition: $condition) {
+      id
+      gameId
+      playerId
+      delta
+      playerInitials
+      gameName
+      recordedBy
+      voided
       createdAt
       updatedAt
       __typename
