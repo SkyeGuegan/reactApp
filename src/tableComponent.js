@@ -58,7 +58,7 @@ function tableComponent(props) {
         mgColor = "gold";
       }  
     return(
-      <tr style={{backgroundColor: "#282c34", color: "white"}}>
+      <tr className="table-dark">
       <td>Total Wins</td>
       <td style={{fontWeight:sgWeight, color:sgColor}}>{sgTotal}</td>
       <td style={{fontWeight:niWeight, color:niColor}}>{niTotal}</td>
@@ -70,7 +70,7 @@ function tableComponent(props) {
 return(
   (props.loading)?
   <Spinner animation="border" role="status">
-  <span className="sr-only">Loading...</span>
+  <span className="visually-hidden">Loading...</span>
 </Spinner>
 :<div style={{padding: "10px"}}>
 <Table striped bordered>
