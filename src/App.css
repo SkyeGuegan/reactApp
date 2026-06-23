@@ -30,6 +30,20 @@
   font-size: 1rem;
 }
 
+/* On narrow screens the absolutely-positioned controls overlap the
+   centered title, so stack the header vertically instead. */
+@media (max-width: 600px) {
+  .App-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .header-action {
+    position: static;
+    transform: none;
+  }
+}
+
 /* White "card" that frames the scoreboard on the gray page. */
 .board-card {
   max-width: 900px;
