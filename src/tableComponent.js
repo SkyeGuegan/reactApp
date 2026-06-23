@@ -59,6 +59,16 @@ function tableComponent(props) {
     );
   }
 
+  if (!games.length || !players.length) {
+    return (
+      <div style={{ padding: '10px' }}>
+        <p style={{ fontStyle: 'italic', color: '#666' }}>
+          The scoreboard is empty — sign in as an admin to add games and players.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '10px' }}>
       <Table striped bordered>
