@@ -8,6 +8,8 @@ type Score
   ) {
   id: ID!
   game: String!
+  # Scores are Float (not Int) on purpose: a draw splits the win, so half
+  # points like 1.5 are valid and exist in the data. Do not change to Int.
   sgScore: Float!
   niScore: Float!
   mgScore: Float!
