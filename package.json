@@ -19,7 +19,12 @@
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "migrate": "node scripts/migrate-to-players.mjs"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.637.0",
+    "@aws-sdk/lib-dynamodb": "^3.637.0"
   },
   "eslintConfig": {
     "extends": "react-app"
