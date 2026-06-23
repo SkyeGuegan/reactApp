@@ -9,7 +9,13 @@ import { createScore as createScoreMutation, deleteScore as deleteScoreMutation,
 import TableComponent from './tableComponent';
 import awsconfig from './aws-exports';
 
-Amplify.configure(awsconfig);
+// The Cognito Identity Pool (guest/IAM credentials) is unused: this app uses
+// only apiKey (public reads) and userPool (writes/sign-in). Removing it from the
+// runtime config prevents 400s from guest-credential fetches on load, since the
+// pool has unauthenticated access disabled.
+const amplifyConfig = { ...awsconfig };
+delete amplifyConfig.aws_cognito_identity_pool_id;
+Amplify.configure(amplifyConfig);
 const client = generateClient();
 
 const initialFormState = { game: '', sgScore: '', niScore: '', mgScore: '' }
