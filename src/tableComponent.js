@@ -18,6 +18,14 @@ function tableComponent(props) {
     return v === undefined ? 0 : v;
   };
 
+  // Per-player grand totals, computed once: drives the totals row plus the
+  // overall "leader" column highlight (gold tint + crown). No leader until at
+  // least one win exists.
+  const totals = players.map(p => games.reduce((sum, g) => sum + scoreFor(g.id, p.id), 0));
+  const maxTotal = totals.length ? Math.max(...totals) : 0;
+  const isLeader = (i) => maxTotal > 0 && totals[i] === maxTotal;
+  const numCol = { textAlign: 'center' };
+
   function gameRow(game) {
     const rowScores = players.map(p => scoreFor(game.id, p.id));
     const max = rowScores.length ? Math.max(...rowScores) : 0;
@@ -25,7 +33,10 @@ function tableComponent(props) {
       <tr key={game.id}>
         <td>{game.name}</td>
         {players.map((p, i) => (
-          <td key={p.id} style={{ fontWeight: rowScores[i] >= max ? 'bold' : 'normal' }}>
+          <td
+            key={p.id}
+            style={{ ...numCol, fontWeight: rowScores[i] >= max ? 'bold' : 'normal' }}
+          >
             {rowScores[i]}
           </td>
         ))}
@@ -34,19 +45,14 @@ function tableComponent(props) {
   }
 
   function totalRow() {
-    const totals = players.map(p => games.reduce((sum, g) => sum + scoreFor(g.id, p.id), 0));
-    const max = totals.length ? Math.max(...totals) : 0;
     return (
       <tr className="table-dark">
         <td>Total Wins</td>
-        {players.map((p, i) => {
-          const isLeader = totals[i] >= max;
-          return (
-            <td key={p.id} style={{ fontWeight: isLeader ? 'bold' : 'normal', color: isLeader ? 'gold' : 'white' }}>
-              {totals[i]}
-            </td>
-          );
-        })}
+        {players.map((p, i) => (
+          <td key={p.id} style={{ ...numCol, fontWeight: isLeader(i) ? 'bold' : 'normal', color: isLeader(i) ? 'gold' : 'white' }}>
+            {totals[i]}
+          </td>
+        ))}
       </tr>
     );
   }
@@ -71,11 +77,15 @@ function tableComponent(props) {
 
   return (
     <div style={{ padding: '10px' }}>
-      <Table striped bordered>
+      <Table striped bordered hover responsive className="align-middle mb-0">
         <thead>
           <tr>
             <th>Game</th>
-            {players.map(p => <th key={p.id}>{p.initials}</th>)}
+            {players.map((p, i) => (
+              <th key={p.id} style={numCol}>
+                <span>{p.initials}</span>{isLeader(i) ? ' 👑' : ''}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>

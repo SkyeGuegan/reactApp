@@ -239,14 +239,19 @@ function Scoreboard() {
     <div className="App">
       <header className="App-header">
       <h1>The Scoreboard</h1>
+      <div className="header-action">
       {isAuthenticated
-      ? <h3>Hello, {user.username}</h3>
-      : <button onClick={handleClick}>{showSignIn ? "Back To Table" : "Sign IN"}</button>
+      ? <>
+          <span>Hello, {user.username}</span>
+          <Button variant="outline-light" size="sm" onClick={() => { signOut(); setShowSignIn(false); }}>Sign Out</Button>
+        </>
+      : <Button variant="outline-light" size="sm" onClick={handleClick}>{showSignIn ? "Back to Table" : "Sign IN"}</Button>
       }
+      </div>
       </header>
       {(!showSignIn || isAuthenticated)
       ?
-      <div>
+      <div className="board-card">
       <TableComponent
         games={sortedGames}
         players={sortedPlayers}
@@ -255,7 +260,7 @@ function Scoreboard() {
       />
       </div>
       :
-      <div>
+      <div className="signin-wrap">
       <Authenticator hideSignUp />
       </div>
       }
@@ -336,7 +341,6 @@ function Scoreboard() {
               </div>
             ))}
           </div>
-          <Button variant="secondary" onClick={() => { signOut(); setShowSignIn(false); }}>Sign Out</Button>
       </div>
       : isAuthenticated
           ? <h3>Hello, {user.username} you are not authorized to enter data</h3>
