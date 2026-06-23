@@ -1,33 +1,28 @@
-import React, { useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
-import { API } from 'aws-amplify';
-import { AmplifySignOut, AmplifyAuthenticator, AmplifySignIn  } from '@aws-amplify/ui-react';
+import { Amplify } from 'aws-amplify';
+import { generateClient } from 'aws-amplify/api';
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
 import { listScores } from './graphql/queries';
 import { createScore as createScoreMutation, deleteScore as deleteScoreMutation, updateScore as updateScoreMutation } from './graphql/mutations';
-import { AuthState, onAuthUIStateChange } from '@aws-amplify/ui-components';
 import TableComponent from './tableComponent';
-import Amplify, { Auth } from 'aws-amplify';
 import awsconfig from './aws-exports';
 
 Amplify.configure(awsconfig);
-Auth.configure(awsconfig);
+const client = generateClient();
 
 const initialFormState = { game: '', sgScore: '', niScore: '', mgScore: '' }
 
-function App() {
-    const [authState, setAuthState] = React.useState();
-    const [user, setUser] = React.useState();
-    const [showSignIn, setShowSignIn] = React.useState(0);
+function Scoreboard() {
+    const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
+    const [showSignIn, setShowSignIn] = useState(false);
     const [scores, setScores] = useState([]);
     const [formData, setFormData] = useState(initialFormState);
     const [loadingScores, setLoadingScores] = useState(true);
 
-    React.useEffect(() => {
-        return onAuthUIStateChange((nextAuthState, authData) => {
-            setAuthState(nextAuthState);
-            setUser(authData)
-        });
-    }, []);
+    const isAuthenticated = authStatus === 'authenticated' && user;
+    const isAdmin = isAuthenticated && user.username === 'sguegan';
 
     useEffect(() => {
       fetchScores();
@@ -35,7 +30,8 @@ function App() {
 
     async function fetchScores() {
       try {
-        const apiData = await API.graphql({ query: listScores });
+        // Public read uses the API key explicitly (see amplify-js#12710).
+        const apiData = await client.graphql({ query: listScores, authMode: 'apiKey' });
         setScores(apiData.data.listScores.items);
       } catch (err) {
         console.error('Failed to load scores', err);
@@ -53,7 +49,7 @@ function App() {
         mgScore: Number(formData.mgScore),
       };
       try {
-        const result = await API.graphql({ query: createScoreMutation, variables: { input }, authMode: 'AMAZON_COGNITO_USER_POOLS' });
+        const result = await client.graphql({ query: createScoreMutation, variables: { input }, authMode: 'userPool' });
         setScores([ ...scores, result.data.createScore ]);
         setFormData(initialFormState);
       } catch (err) {
@@ -65,7 +61,7 @@ function App() {
       const previousScores = scores;
       setScores(scores.filter(score => score.id !== id));
       try {
-        await API.graphql({ query: deleteScoreMutation, variables: { input:  {id}  }, authMode: 'AMAZON_COGNITO_USER_POOLS' });
+        await client.graphql({ query: deleteScoreMutation, variables: { input: { id } }, authMode: 'userPool' });
       } catch (err) {
         console.error('Failed to delete score', err);
         setScores(previousScores);
@@ -84,19 +80,15 @@ function App() {
         [field]: score[field] + delta,
       };
       try {
-        await API.graphql({ query: updateScoreMutation, variables: { input }, authMode: 'AMAZON_COGNITO_USER_POOLS' });
+        await client.graphql({ query: updateScoreMutation, variables: { input }, authMode: 'userPool' });
         setScores(scores.map(s => (s.id === score.id ? { ...s, ...input } : s)));
       } catch (err) {
         console.error('Failed to update score', err);
       }
     }
 
-    function handleClick(){
-      if(showSignIn===1){
-        setShowSignIn(0)
-      }else{
-      setShowSignIn(1)
-      }
+    function handleClick() {
+      setShowSignIn((prev) => !prev);
     }
 
     const sortedScores = [...scores].sort(function(a, b) {
@@ -116,11 +108,13 @@ function App() {
     <div className="App">
       <header className="App-header">
       <h1>The Scoreboard</h1>
-      {(authState === AuthState.SignedIn && user)?<h3>Hello, {user.username}</h3>
-      :<button onClick={handleClick}>{(showSignIn===1)?"Back To Table":"Sign IN"}</button>
+      {isAuthenticated
+      ? <h3>Hello, {user.username}</h3>
+      : <button onClick={handleClick}>{showSignIn ? "Back To Table" : "Sign IN"}</button>
       }
       </header>
-      {(showSignIn===0 || (authState === AuthState.SignedIn && user))?
+      {(!showSignIn || isAuthenticated)
+      ?
       <div>
       <TableComponent
       scores = {sortedScores}
@@ -128,14 +122,13 @@ function App() {
       />
       </div>
       :
-      <div> 
-      <AmplifyAuthenticator>
-        <AmplifySignIn></AmplifySignIn>
-      </AmplifyAuthenticator>
+      <div>
+      <Authenticator hideSignUp />
       </div>
       }
-      {(authState === AuthState.SignedIn && user && user.username ==="sguegan")?
-      <div> 
+      {isAdmin
+      ?
+      <div>
            <input
             onChange={e => setFormData({ ...formData, 'game': e.target.value})}
             placeholder="Name of the Game"
@@ -165,7 +158,7 @@ function App() {
               sortedScores.map(score => (
                 <div key={score.id || score.game}>
                   <h2>
-                  {score.game} 
+                  {score.game}
                   {<button onClick={() => updateScore(score, 'sg','plus')}>+</button>}{score.sgScore}{<button onClick={() => updateScore(score, 'sg','minus')}>-</button>}
                   {<button onClick={() => updateScore(score, 'ni','plus')}>+</button>}{score.niScore}{<button onClick={() => updateScore(score, 'ni','minus')}>-</button>}
                   {<button onClick={() => updateScore(score, 'mg','plus')}>+</button>}{score.mgScore}{<button onClick={() => updateScore(score, 'mg','minus')}>-</button>}
@@ -175,12 +168,21 @@ function App() {
               ))
             }
           </div>
-      <AmplifySignOut onClick={handleClick}/>
+      <button onClick={() => { signOut(); setShowSignIn(false); }}>Sign Out</button>
       </div>
-      :(authState === AuthState.SignedIn && user)? <h3>Hello, {user.username} you are not authorized to enter data</h3>
-          :null
+      : isAuthenticated
+          ? <h3>Hello, {user.username} you are not authorized to enter data</h3>
+          : null
       }
       </div>
+  );
+}
+
+function App() {
+  return (
+    <Authenticator.Provider>
+      <Scoreboard />
+    </Authenticator.Provider>
   );
 }
 
