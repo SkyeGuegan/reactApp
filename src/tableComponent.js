@@ -5,92 +5,76 @@ import './App.css';
 import Table from 'react-bootstrap/Table';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+// Renders a dynamic scoreboard: one column per player (from props.players),
+// one row per game (props.games), with cell values joined from
+// props.gameScores. Players and games are expected pre-sorted by the caller.
 function tableComponent(props) {
+  const { games = [], players = [], gameScores = [], loading } = props;
 
-  function gameRow(score){
-    let sgWeight="normal"; 
-    let niWeight="normal";
-    let mgWeight="normal";
-    
-      if(score.sgScore>=score.niScore&&score.sgScore>=score.mgScore){
-        sgWeight = "bold";
-      }
-      if(score.niScore>=score.sgScore&&score.niScore>=score.mgScore){
-        niWeight = "bold";
-      }
-      if(score.mgScore>=score.niScore&&score.mgScore>=score.sgScore){
-        mgWeight= "bold";
-      }   
-      return(
-        <tr key={score.game}>
-        <td>{score.game}</td>
-        <td style={{fontWeight:sgWeight}}>{score.sgScore}</td>
-        <td style={{fontWeight:niWeight}}>{score.niScore}</td>
-        <td style={{fontWeight:mgWeight}}>{score.mgScore}</td>
-        </tr>
-      )
-  }
+  // (gameId#playerId) -> score
+  const lookup = new Map(gameScores.map(gs => [`${gs.gameId}#${gs.playerId}`, gs.score]));
+  const scoreFor = (gameId, playerId) => {
+    const v = lookup.get(`${gameId}#${playerId}`);
+    return v === undefined ? 0 : v;
+  };
 
-  function totalRow(){
-    let sgTotal = 0;
-    let niTotal = 0;
-    let mgTotal = 0;
-    let sgWeight="normal"; 
-    let niWeight="normal";
-    let mgWeight="normal";
-    let sgColor="white"; 
-    let niColor="white";
-    let mgColor="white";
-    props.scores.forEach(score => {
-      sgTotal = score.sgScore + sgTotal;
-      niTotal = score.niScore + niTotal;
-      mgTotal = score.mgScore + mgTotal;})
-      if(sgTotal>=niTotal&&sgTotal>=mgTotal){
-        sgWeight = "bold";
-        sgColor = "gold";
-      }
-      if(niTotal>=sgTotal&&niTotal>=mgTotal){
-        niWeight = "bold";
-        niColor = "gold";
-      }
-      if(mgTotal>=niTotal&&mgTotal>=sgTotal){
-        mgWeight= "bold";
-        mgColor = "gold";
-      }  
-    return(
-      <tr className="table-dark">
-      <td>Total Wins</td>
-      <td style={{fontWeight:sgWeight, color:sgColor}}>{sgTotal}</td>
-      <td style={{fontWeight:niWeight, color:niColor}}>{niTotal}</td>
-      <td style={{fontWeight:mgWeight, color:mgColor}}>{mgTotal}</td>
+  function gameRow(game) {
+    const rowScores = players.map(p => scoreFor(game.id, p.id));
+    const max = rowScores.length ? Math.max(...rowScores) : 0;
+    return (
+      <tr key={game.id}>
+        <td>{game.name}</td>
+        {players.map((p, i) => (
+          <td key={p.id} style={{ fontWeight: rowScores[i] >= max ? 'bold' : 'normal' }}>
+            {rowScores[i]}
+          </td>
+        ))}
       </tr>
-    )
+    );
   }
-  
-return(
-  (props.loading)?
-  <Spinner animation="border" role="status">
-  <span className="visually-hidden">Loading...</span>
-</Spinner>
-:<div style={{padding: "10px"}}>
-<Table striped bordered>
-  <thead>
-<tr>
-<th>Game</th>
-<th>SG</th>
-<th>NI</th>
-<th>MG</th>
-</tr>
-</thead>
-<tbody>
 
-{props.scores.map(score => (gameRow(score)))}
-  {totalRow()}
-</tbody>
-</Table>
-</div>
-)
+  function totalRow() {
+    const totals = players.map(p => games.reduce((sum, g) => sum + scoreFor(g.id, p.id), 0));
+    const max = totals.length ? Math.max(...totals) : 0;
+    return (
+      <tr className="table-dark">
+        <td>Total Wins</td>
+        {players.map((p, i) => {
+          const isLeader = totals[i] >= max;
+          return (
+            <td key={p.id} style={{ fontWeight: isLeader ? 'bold' : 'normal', color: isLeader ? 'gold' : 'white' }}>
+              {totals[i]}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  }
 
+  if (loading) {
+    return (
+      <Spinner animation="border" role="status">
+        <span className="visually-hidden">Loading...</span>
+      </Spinner>
+    );
+  }
+
+  return (
+    <div style={{ padding: '10px' }}>
+      <Table striped bordered>
+        <thead>
+          <tr>
+            <th>Game</th>
+            {players.map(p => <th key={p.id}>{p.initials}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {games.map(game => gameRow(game))}
+          {totalRow()}
+        </tbody>
+      </Table>
+    </div>
+  );
 }
 
 export default tableComponent;

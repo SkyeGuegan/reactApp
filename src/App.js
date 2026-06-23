@@ -4,9 +4,16 @@ import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
-import { listScores } from './graphql/queries';
-import { createScore as createScoreMutation, deleteScore as deleteScoreMutation } from './graphql/mutations';
-import { incrementScore as incrementScoreMutation } from './graphql/customMutations';
+import { listGames, listPlayers, listGameScores } from './graphql/customQueries';
+import {
+  createGame as createGameMutation,
+  deleteGame as deleteGameMutation,
+  createPlayer as createPlayerMutation,
+  deletePlayer as deletePlayerMutation,
+  createGameScore as createGameScoreMutation,
+  deleteGameScore as deleteGameScoreMutation,
+  incrementScore as incrementScoreMutation,
+} from './graphql/customMutations';
 import TableComponent from './tableComponent';
 import awsconfig from './aws-exports';
 
@@ -19,82 +26,143 @@ delete amplifyConfig.aws_cognito_identity_pool_id;
 Amplify.configure(amplifyConfig);
 const client = generateClient();
 
-const initialFormState = { game: '', sgScore: '', niScore: '', mgScore: '' }
+// Key for looking up the GameScore cell at (game, player).
+const scoreKey = (gameId, playerId) => `${gameId}#${playerId}`;
+
+const byName = (a, b) => a.name.toUpperCase().localeCompare(b.name.toUpperCase());
+const byInitials = (a, b) => a.initials.toUpperCase().localeCompare(b.initials.toUpperCase());
+
+// Fetch every page of a list query — rows (= games × players) can exceed the
+// 100-item default. Public read uses the API key explicitly (see amplify-js#12710).
+async function fetchAllPages(query, field) {
+  const items = [];
+  let nextToken = null;
+  do {
+    const res = await client.graphql({ query, authMode: 'apiKey', variables: { limit: 1000, nextToken } });
+    const conn = res.data[field];
+    items.push(...conn.items);
+    nextToken = conn.nextToken;
+  } while (nextToken);
+  return items;
+}
 
 function Scoreboard() {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
     const [showSignIn, setShowSignIn] = useState(false);
-    const [scores, setScores] = useState([]);
-    const [formData, setFormData] = useState(initialFormState);
-    const [loadingScores, setLoadingScores] = useState(true);
+    const [games, setGames] = useState([]);
+    const [players, setPlayers] = useState([]);
+    const [gameScores, setGameScores] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [newGame, setNewGame] = useState('');
+    const [newPlayer, setNewPlayer] = useState('');
 
     const isAuthenticated = authStatus === 'authenticated' && user;
     const isAdmin = isAuthenticated && user.username === 'sguegan';
 
     useEffect(() => {
-      fetchScores();
+      fetchBoard();
     }, []);
 
-    async function fetchScores() {
+    async function fetchBoard() {
       try {
-        // Public read uses the API key explicitly (see amplify-js#12710).
-        const apiData = await client.graphql({ query: listScores, authMode: 'apiKey' });
-        setScores(apiData.data.listScores.items);
+        const [g, p, gs] = await Promise.all([
+          fetchAllPages(listGames, 'listGames'),
+          fetchAllPages(listPlayers, 'listPlayers'),
+          fetchAllPages(listGameScores, 'listGameScores'),
+        ]);
+        setGames(g);
+        setPlayers(p);
+        setGameScores(gs);
       } catch (err) {
-        console.error('Failed to load scores', err);
+        console.error('Failed to load scoreboard', err);
       } finally {
-        setLoadingScores(false);
+        setLoading(false);
       }
     }
 
-    async function createScore() {
-      if (!formData.game || !formData.sgScore || !formData.niScore || !formData.mgScore) return;
-      const input = {
-        game: formData.game,
-        sgScore: Number(formData.sgScore),
-        niScore: Number(formData.niScore),
-        mgScore: Number(formData.mgScore),
-      };
+    // Add a player by initials and zero-fill them across every existing game.
+    async function addPlayer() {
+      const initials = newPlayer.trim();
+      if (!initials) return;
       try {
-        const result = await client.graphql({ query: createScoreMutation, variables: { input }, authMode: 'userPool' });
-        setScores([ ...scores, result.data.createScore ]);
-        setFormData(initialFormState);
+        const res = await client.graphql({ query: createPlayerMutation, variables: { input: { initials } }, authMode: 'userPool' });
+        const player = res.data.createPlayer;
+        const created = await Promise.all(games.map(game =>
+          client.graphql({ query: createGameScoreMutation, variables: { input: { gameId: game.id, playerId: player.id, score: 0 } }, authMode: 'userPool' })
+            .then(r => r.data.createGameScore)
+        ));
+        setPlayers([...players, player]);
+        setGameScores([...gameScores, ...created]);
+        setNewPlayer('');
       } catch (err) {
-        console.error('Failed to create score', err);
+        console.error('Failed to add player', err);
       }
     }
 
-    async function deleteScore({ id }) {
-      const previousScores = scores;
-      setScores(scores.filter(score => score.id !== id));
+    // Add a game and start every existing player at 0 in it.
+    async function addGame() {
+      const name = newGame.trim();
+      if (!name) return;
       try {
-        await client.graphql({ query: deleteScoreMutation, variables: { input: { id } }, authMode: 'userPool' });
+        const res = await client.graphql({ query: createGameMutation, variables: { input: { name } }, authMode: 'userPool' });
+        const game = res.data.createGame;
+        const created = await Promise.all(players.map(player =>
+          client.graphql({ query: createGameScoreMutation, variables: { input: { gameId: game.id, playerId: player.id, score: 0 } }, authMode: 'userPool' })
+            .then(r => r.data.createGameScore)
+        ));
+        setGames([...games, game]);
+        setGameScores([...gameScores, ...created]);
+        setNewGame('');
       } catch (err) {
-        console.error('Failed to delete score', err);
-        setScores(previousScores);
+        console.error('Failed to add game', err);
       }
     }
 
-    async function updateScore(score, player, action) {
-      const field = player === 'sg' ? 'sgScore' : player === 'ni' ? 'niScore' : 'mgScore';
-      const delta = action === 'plus' ? 1 : -1;
-      // Optimistically reflect the change, but keep the old list so we can
-      // roll back if the server rejects it.
-      const previousScores = scores;
-      setScores(scores.map(s => (s.id === score.id ? { ...s, [field]: s[field] + delta } : s)));
+    async function increment(cell, delta) {
+      // Optimistically reflect the change, keep the old list for rollback.
+      const previous = gameScores;
+      setGameScores(gameScores.map(gs => (gs.id === cell.id ? { ...gs, score: gs.score + delta } : gs)));
       try {
         // Atomic, server-side increment — no read-modify-write, so concurrent
         // edits no longer clobber each other. Reconcile to the authoritative value.
-        const result = await client.graphql({
-          query: incrementScoreMutation,
-          variables: { id: score.id, field, delta },
-          authMode: 'userPool',
-        });
-        const updated = result.data.incrementScore;
-        setScores(prev => prev.map(s => (s.id === score.id ? { ...s, ...updated } : s)));
+        const res = await client.graphql({ query: incrementScoreMutation, variables: { id: cell.id, delta }, authMode: 'userPool' });
+        const updated = res.data.incrementScore;
+        setGameScores(prev => prev.map(gs => (gs.id === updated.id ? { ...gs, score: updated.score } : gs)));
       } catch (err) {
         console.error('Failed to update score', err);
-        setScores(previousScores);
+        setGameScores(previous);
+      }
+    }
+
+    async function deleteGame(game) {
+      const previousGames = games;
+      const previousScores = gameScores;
+      const related = gameScores.filter(gs => gs.gameId === game.id);
+      setGames(games.filter(g => g.id !== game.id));
+      setGameScores(gameScores.filter(gs => gs.gameId !== game.id));
+      try {
+        await Promise.all(related.map(gs => client.graphql({ query: deleteGameScoreMutation, variables: { input: { id: gs.id } }, authMode: 'userPool' })));
+        await client.graphql({ query: deleteGameMutation, variables: { input: { id: game.id } }, authMode: 'userPool' });
+      } catch (err) {
+        console.error('Failed to delete game', err);
+        setGames(previousGames);
+        setGameScores(previousScores);
+      }
+    }
+
+    async function deletePlayer(player) {
+      const previousPlayers = players;
+      const previousScores = gameScores;
+      const related = gameScores.filter(gs => gs.playerId === player.id);
+      setPlayers(players.filter(p => p.id !== player.id));
+      setGameScores(gameScores.filter(gs => gs.playerId !== player.id));
+      try {
+        await Promise.all(related.map(gs => client.graphql({ query: deleteGameScoreMutation, variables: { input: { id: gs.id } }, authMode: 'userPool' })));
+        await client.graphql({ query: deletePlayerMutation, variables: { input: { id: player.id } }, authMode: 'userPool' });
+      } catch (err) {
+        console.error('Failed to delete player', err);
+        setPlayers(previousPlayers);
+        setGameScores(previousScores);
       }
     }
 
@@ -102,18 +170,9 @@ function Scoreboard() {
       setShowSignIn((prev) => !prev);
     }
 
-    const sortedScores = [...scores].sort(function(a, b) {
-    // ignore upper and lowercase
-    var gameA = a.game.toUpperCase();
-    var gameB = b.game.toUpperCase();
-    if (gameA < gameB) {
-      return -1;
-    }
-    if (gameA > gameB) {
-      return 1;
-    }
-    return 0;
-  })
+    const sortedGames = [...games].sort(byName);
+    const sortedPlayers = [...players].sort(byInitials);
+    const scoreLookup = new Map(gameScores.map(gs => [scoreKey(gs.gameId, gs.playerId), gs]));
 
   return (
     <div className="App">
@@ -128,8 +187,10 @@ function Scoreboard() {
       ?
       <div>
       <TableComponent
-      scores = {sortedScores}
-      loading = {loadingScores}
+        games={sortedGames}
+        players={sortedPlayers}
+        gameScores={gameScores}
+        loading={loading}
       />
       </div>
       :
@@ -139,45 +200,52 @@ function Scoreboard() {
       }
       {isAdmin
       ?
-      <div>
-           <input
-            onChange={e => setFormData({ ...formData, 'game': e.target.value})}
-            placeholder="Name of the Game"
-            value={formData.game}
-          />
-          <input
-            type="number"
-            onChange={e => setFormData({ ...formData, 'sgScore': e.target.value})}
-            placeholder="SG's score"
-            value={formData.sgScore}
-          />
-          <input
-            type="number"
-            onChange={e => setFormData({ ...formData, niScore: e.target.value})}
-            placeholder="NI's score"
-            value={formData.niScore}
-          />
-          <input
-            type="number"
-            onChange={e => setFormData({ ...formData, mgScore: e.target.value})}
-            placeholder="MG's score"
-            value={formData.mgScore}
-          />
-          <button onClick={createScore}>Create Score</button>
-          <div style={{marginBottom: 30}}>
-            {
-              sortedScores.map(score => (
-                <div key={score.id || score.game}>
-                  <h2>
-                  {score.game}
-                  {<button onClick={() => updateScore(score, 'sg','plus')}>+</button>}{score.sgScore}{<button onClick={() => updateScore(score, 'sg','minus')}>-</button>}
-                  {<button onClick={() => updateScore(score, 'ni','plus')}>+</button>}{score.niScore}{<button onClick={() => updateScore(score, 'ni','minus')}>-</button>}
-                  {<button onClick={() => updateScore(score, 'mg','plus')}>+</button>}{score.mgScore}{<button onClick={() => updateScore(score, 'mg','minus')}>-</button>}
-                  </h2>
-                  <button onClick={() => deleteScore(score)}>Delete Score</button>
-                </div>
-              ))
-            }
+      <div style={{ marginTop: 20 }}>
+          <div style={{ marginBottom: 12 }}>
+            <input
+              onChange={e => setNewGame(e.target.value)}
+              placeholder="New game name"
+              value={newGame}
+            />
+            <button onClick={addGame}>Add Game</button>
+            <input
+              onChange={e => setNewPlayer(e.target.value)}
+              placeholder="New player initials"
+              value={newPlayer}
+            />
+            <button onClick={addPlayer}>Add Player</button>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            {sortedPlayers.map(player => (
+              <span key={player.id} style={{ marginRight: 8 }}>
+                {player.initials}
+                <button onClick={() => deletePlayer(player)}>x</button>
+              </span>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: 30 }}>
+            {sortedGames.map(game => (
+              <div key={game.id}>
+                <h2>
+                {game.name}{' '}
+                {sortedPlayers.map(player => {
+                  const cell = scoreLookup.get(scoreKey(game.id, player.id));
+                  if (!cell) return null;
+                  return (
+                    <span key={player.id} style={{ marginRight: 12 }}>
+                      {player.initials}:
+                      <button onClick={() => increment(cell, -1)}>-</button>
+                      {cell.score}
+                      <button onClick={() => increment(cell, 1)}>+</button>
+                    </span>
+                  );
+                })}
+                </h2>
+                <button onClick={() => deleteGame(game)}>Delete Game</button>
+              </div>
+            ))}
           </div>
       <button onClick={() => { signOut(); setShowSignIn(false); }}>Sign Out</button>
       </div>
