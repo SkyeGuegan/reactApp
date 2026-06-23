@@ -4,15 +4,9 @@
   $util.unauthorized()
 #end
 
-## Only allow incrementing real, numeric score fields.
-#set( $allowedFields = ["sgScore", "niScore", "mgScore", "fourScore"] )
-#if( !$allowedFields.contains($ctx.args.field) )
-  $util.error("Invalid field: $ctx.args.field", "ValidationError")
-#end
-
-## Atomic DynamoDB increment. ADD treats a missing attribute as 0,
-## so this also handles a never-set fourScore. attribute_exists(id)
-## ensures we only update an existing row, never create one.
+## Atomic DynamoDB increment of a single GameScore cell. ADD treats a missing
+## attribute as 0. attribute_exists(id) ensures we only update an existing row,
+## never create one.
 {
   "version": "2018-05-29",
   "operation": "UpdateItem",
@@ -20,9 +14,9 @@
     "id": $util.dynamodb.toDynamoDBJson($ctx.args.id)
   },
   "update": {
-    "expression": "ADD #field :delta",
+    "expression": "ADD #score :delta",
     "expressionNames": {
-      "#field": "$ctx.args.field"
+      "#score": "score"
     },
     "expressionValues": {
       ":delta": $util.dynamodb.toDynamoDBJson($ctx.args.delta)

@@ -1,3 +1,11 @@
+# Auth rules shared by every model: anyone with the API key can read
+# (public scoreboard), only the "admin" Cognito group can write.
+
+# ---------------------------------------------------------------------------
+# PHASE A (transitional): the legacy Score model is kept ALONGSIDE the new
+# Player/Game/GameScore models so the migration script can read existing data
+# before Phase B deletes it. Do not remove Score until migration is verified.
+# ---------------------------------------------------------------------------
 type Score
   @model
   @auth(
@@ -8,25 +16,70 @@ type Score
   ) {
   id: ID!
   game: String!
-  # Scores are Float (not Int) on purpose: a draw splits the win, so half
-  # points like 1.5 are valid and exist in the data. Do not change to Int.
   sgScore: Float!
   niScore: Float!
   mgScore: Float!
   fourScore: Float
 }
 
-# Atomic, server-side increment for a single score field.
-# Backed by a custom DynamoDB UpdateItem ("ADD") resolver so concurrent
-# +/- edits no longer clobber each other (the old client-side
-# read-modify-write was racy).
+# A roster entry. A player is just initials; their scores live in GameScore.
+type Player
+  @model
+  @auth(
+    rules: [
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: groups, groups: ["admin"] }
+    ]
+  ) {
+  id: ID!
+  initials: String!
+}
+
+# A game (one row in the scoreboard).
+type Game
+  @model
+  @auth(
+    rules: [
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: groups, groups: ["admin"] }
+    ]
+  ) {
+  id: ID!
+  name: String!
+}
+
+# One player's score in one game (a single cell of the board). Adding a player
+# or a game fans out a GameScore row per pairing, starting at 0.
+type GameScore
+  @model
+  @auth(
+    rules: [
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: groups, groups: ["admin"] }
+    ]
+  ) {
+  id: ID!
+  gameId: ID!
+  playerId: ID!
+  # Float (not Int) on purpose: a draw splits the win, so half points like 1.5
+  # are valid and exist in the migrated data. Do not change to Int.
+  score: Float!
+}
+
+# Atomic, server-side increment of a single GameScore cell.
+# Backed by a custom DynamoDB UpdateItem ("ADD") resolver so concurrent +/-
+# edits no longer clobber each other (the old client-side read-modify-write
+# was racy).
 #
 # @aws_cognito_user_pools is required because the API's default auth mode is
 # API_KEY: without an explicit directive AppSync would only allow this field
 # via the API key, and the client calls it with the user pool. cognito_groups
 # restricts it to admins at the AppSync layer; the resolver VTL re-checks the
 # same group as defense in depth.
+#
+# delta is Float so a future "draw / +0.5" button needs no schema change; the
+# +/- buttons currently send ±1.
 type Mutation {
-  incrementScore(id: ID!, field: String!, delta: Int!): Score
+  incrementScore(id: ID!, delta: Float!): GameScore
     @aws_cognito_user_pools(cognito_groups: ["admin"])
 }
