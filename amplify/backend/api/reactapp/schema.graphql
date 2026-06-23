@@ -1,27 +1,6 @@
 # Auth rules shared by every model: anyone with the API key can read
 # (public scoreboard), only the "admin" Cognito group can write.
 
-# ---------------------------------------------------------------------------
-# PHASE A (transitional): the legacy Score model is kept ALONGSIDE the new
-# Player/Game/GameScore models so the migration script can read existing data
-# before Phase B deletes it. Do not remove Score until migration is verified.
-# ---------------------------------------------------------------------------
-type Score
-  @model
-  @auth(
-    rules: [
-      { allow: public, provider: apiKey, operations: [read] }
-      { allow: groups, groups: ["admin"] }
-    ]
-  ) {
-  id: ID!
-  game: String!
-  sgScore: Float!
-  niScore: Float!
-  mgScore: Float!
-  fourScore: Float
-}
-
 # A roster entry. A player is just initials; their scores live in GameScore.
 type Player
   @model
