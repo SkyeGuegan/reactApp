@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import '@aws-amplify/ui-react/styles.css';
 import { Form, InputGroup, Button, ButtonGroup, Badge, Modal } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -13,6 +14,27 @@ const scoreKey = (gameId, playerId) => `${gameId}#${playerId}`;
 
 const byName = (a, b) => a.name.toUpperCase().localeCompare(b.name.toUpperCase());
 const byInitials = (a, b) => a.initials.toUpperCase().localeCompare(b.initials.toUpperCase());
+
+// True when the signed-in user is in the Cognito "admin" group — the same group
+// the backend requires for writes. UI gating only; the server is the real boundary.
+function useIsAdmin(user) {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setIsAdmin(false);
+      return undefined;
+    }
+    fetchAuthSession()
+      .then(({ tokens }) => {
+        const groups = tokens?.accessToken?.payload?.['cognito:groups'] || [];
+        if (!cancelled) setIsAdmin(groups.includes('admin'));
+      })
+      .catch(() => { if (!cancelled) setIsAdmin(false); });
+    return () => { cancelled = true; };
+  }, [user]);
+  return isAdmin;
+}
 
 function Scoreboard() {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
@@ -27,7 +49,8 @@ function Scoreboard() {
     const [pendingDelete, setPendingDelete] = useState(null);
 
     const isAuthenticated = authStatus === 'authenticated' && user;
-    const isAdmin = isAuthenticated && user.username === 'sguegan';
+    const inAdminGroup = useIsAdmin(isAuthenticated ? user : null);
+    const isAdmin = isAuthenticated && inAdminGroup;
 
     // Validate (non-empty, no duplicate) then delegate the server work to the hook.
     async function submitGame() {
