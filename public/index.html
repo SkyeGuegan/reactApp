@@ -5,6 +5,18 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Apply the light/dark theme before first paint (no flash). The saved
+      // choice ('light' | 'dark', key 'scoreboard-theme', see src/theme.js)
+      // wins; otherwise follow the device setting. React takes over once loaded.
+      (function () {
+        var saved = null;
+        try { saved = window.localStorage.getItem('scoreboard-theme'); } catch (e) {}
+        var dark = saved === 'dark' || (saved !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      })();
+    </script>
     <meta name="theme-color" content="#282c34" />
     <meta
       name="description"

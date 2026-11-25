@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import { Authenticator, useAuthenticator, ThemeProvider, defaultDarkModeOverride } from '@aws-amplify/ui-react';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import '@aws-amplify/ui-react/styles.css';
 import { Button, ButtonGroup, Modal, Toast, ToastContainer } from 'react-bootstrap';
@@ -11,6 +11,8 @@ import ManagePanel from './ManagePanel';
 import RecordPlayDialog from './RecordPlayDialog';
 import AllGames from './AllGames';
 import { corePlayers, playedCounts as computePlayedCounts } from './plays';
+import ThemeMenu from './ThemeMenu';
+import { useTheme } from './theme';
 import useScoreboard from './useScoreboard';
 import { formatDelta } from './history';
 
@@ -38,7 +40,28 @@ function useIsAdmin(user) {
   return isAdmin;
 }
 
-function Scoreboard() {
+// The gold trophy from the favicon, sized to the title text.
+function Trophy() {
+  return (
+    <svg className="header-trophy" viewBox="12 10 40 45" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="#d4a72c" strokeWidth="4" strokeLinecap="round">
+        <path d="M20 17h-6c0 9 4 13 9 13" />
+        <path d="M44 17h6c0 9-4 13-9 13" />
+      </g>
+      <g fill="#d4a72c">
+        <path d="M19 12h26v10c0 9-5.5 15-13 15s-13-6-13-15z" />
+        <rect x="29" y="36" width="6" height="8" />
+        <rect x="22" y="44" width="20" height="5" rx="1.5" />
+        <rect x="18" y="49" width="28" height="4" rx="1.5" />
+      </g>
+    </svg>
+  );
+}
+
+// Amplify UI (the sign-in box) follows the system light/dark setting too.
+const amplifyTheme = { name: 'scoreboard', overrides: [defaultDarkModeOverride] };
+
+function Scoreboard({ themeMode, onThemeChange }) {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
     const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, lastEvent, lastVoidedId } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
@@ -236,7 +259,7 @@ function Scoreboard() {
   return (
     <div className="App">
       <header className="App-header">
-      <h1>The Scoreboard</h1>
+      <h1><Trophy />The Scoreboard</h1>
       <div className="header-action">
       {isAuthenticated
       ? <>
@@ -245,6 +268,7 @@ function Scoreboard() {
         </>
       : <Button variant="outline-light" size="sm" onClick={handleClick}>{showSignIn ? "Back to table" : "Sign in"}</Button>
       }
+      <ThemeMenu mode={themeMode} onChange={onThemeChange} />
       </div>
       </header>
       {(!showSignIn || isAuthenticated)
@@ -398,10 +422,15 @@ function Scoreboard() {
 }
 
 function App() {
+  // Light/dark choice (Automatic / Light / Dark), shared by the page and the
+  // Amplify sign-in box.
+  const [themeMode, setThemeMode] = useTheme();
   return (
-    <Authenticator.Provider>
-      <Scoreboard />
-    </Authenticator.Provider>
+    <ThemeProvider theme={amplifyTheme} colorMode={themeMode === 'auto' ? 'system' : themeMode}>
+      <Authenticator.Provider>
+        <Scoreboard themeMode={themeMode} onThemeChange={setThemeMode} />
+      </Authenticator.Provider>
+    </ThemeProvider>
   );
 }
 
