@@ -240,3 +240,11 @@
     gap: 4px;
   }
 }
+
+/* Signed in without admin rights: a quiet note, not a heading. */
+.viewer-note {
+  max-width: 900px;
+  margin: 0 auto 32px;
+  color: #6c757d;
+  font-size: 0.9rem;
+}

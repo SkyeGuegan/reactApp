@@ -1,100 +1,65 @@
-## The Scoreboard
+# The Scoreboard
 
-Link to Website: https://master.d1uiq2n8l3hr2t.amplifyapp.com/
+A win tally for our game nights: who has won which game, overall totals, and how the race has changed over time.
 
-### Second Update
-Added Features:
-- Add a Total Wins row
-- The player with the most Total wins is now Gold
-- Highlight the player with the most wins in a game
-- Restrict what a logged in user can do
-- Allows certain users to update the scoreboard, Add or subtract wins
+**Live site:** https://master.d1uiq2n8l3hr2t.amplifyapp.com/
 
-Changes to come:
-- Limit how someone can log in
-- Add links to game website for each game
-- Add a Games played Catagory
-- Style changes for logged in Admin
+![The Scoreboard](pictures/scoreboard.png)
 
+## Features
 
-### First Update
-Changes to come:
-- Add a Total Wins row
-- Highlight the player with the most wins in a game
-- Restrict what a logged in user can do 
-- Limit how someone can log in
-- Allowed certain users to update the scoreboard
-- Add links to game website for each game
+- **Table**: wins per game and player, with a Total Wins row. The overall leader gets a crown and gold total; the best score in each game is bold. Scores can include half points (from shared wins).
+- **Trends**: each player's cumulative wins over time. Corrections (a win added then removed) don't show as dips.
+- **Admin editing** (signed-in members of the Cognito `admin` group only):
+  - **Edit scores** turns the table into −/+ steppers. Column order stays put while you edit; − asks for confirmation; every change shows a notice with **Undo**.
+  - **Manage** card: add games and players, delete them from the roster, and browse the full score history, where any change can be voided.
+  - Scores can never go below 0 (enforced by the server, not just the UI).
 
-![Screenshot](/pictures/hompage_2-21.png)
+Anyone can view the board. Only admins can change it, and the backend enforces that on every write.
 
-## Starting README
+## Stack
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+- React 18, react-bootstrap 5, Recharts, built with Create React App (react-scripts 5) + CRACO
+- AWS Amplify Gen 1: AppSync GraphQL API, DynamoDB, Cognito user pool (region `us-west-2`)
+- Hosting: Amplify Hosting, built from `master`
 
-### Available Scripts
+## Data model
 
-In the project directory, you can run:
+Defined in `amplify/backend/api/reactapp/schema.graphql`:
 
-### `npm start`
+| Model | What it is |
+|---|---|
+| `Player` | A player's initials |
+| `Game` | A game on the board |
+| `GameScore` | One player's current score in one game (a table cell) |
+| `ScoreEvent` | Append-only history: one row per score change. Rows are voided, never deleted. Powers Trends and the admin history. |
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Score changes go through a custom `incrementScore` mutation that updates the cell atomically on the server and refuses to go below 0.
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+## Development
 
-### `npm test`
+Requires Node 20 (see `.nvmrc`).
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+npm install
+npm start                      # http://localhost:3000
+npm test -- --watchAll=false   # run the tests once
+npm run build                  # production build
+```
 
-### `npm run build`
+The app reads its backend settings from `src/aws-exports.js`, which is generated and not committed. On a new machine:
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+npm install -g @aws-amplify/cli
+amplify configure              # region us-west-2, profile "default"
+amplify pull                   # connect to the existing backend
+```
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+Never run `amplify init`: it creates a brand-new backend. Backend changes are deployed with `amplify push`.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Ideas
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
-
-### Analyzing the Bundle Size
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
-
-### Making a Progressive Web App
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
-
-### Advanced Configuration
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
-
-### Deployment
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
-
-### `npm run build` fails to minify
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+- Links to each game's website
+- A games-played count per game
+- MFA for admin sign-in
+- Move from Create React App to Vite

@@ -183,9 +183,9 @@ function Scoreboard() {
       {isAuthenticated
       ? <>
           <span>Hello, {user.username}</span>
-          <Button variant="outline-light" size="sm" onClick={() => { signOut(); setShowSignIn(false); }}>Sign Out</Button>
+          <Button variant="outline-light" size="sm" onClick={() => { signOut(); setShowSignIn(false); }}>Sign out</Button>
         </>
-      : <Button variant="outline-light" size="sm" onClick={handleClick}>{showSignIn ? "Back to Table" : "Sign IN"}</Button>
+      : <Button variant="outline-light" size="sm" onClick={handleClick}>{showSignIn ? "Back to table" : "Sign in"}</Button>
       }
       </div>
       </header>
@@ -246,7 +246,7 @@ function Scoreboard() {
         lastVoidedId={lastVoidedId}
       />
       : isAuthenticated
-          ? <h3>Hello, {user.username} you are not authorized to enter data</h3>
+          ? <p className="viewer-note">You're signed in as {user.username}. Only admins can change scores.</p>
           : null
       }
 

@@ -50,4 +50,4 @@ Use `craco`, never plain `react-scripts`: `craco.config.js` disables webpack 5's
 ## Conventions
 
 - Commit directly to `master` with a concise one-line message.
-- `README.md` is stale (pre-modernization, CRA boilerplate); trust the code and this file over it.
+- ScoreEvent rows with `recordedBy: "backfill"` are synthetic history (random dates before 2026-06-23); don't treat their dates as real.
