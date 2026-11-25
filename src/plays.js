@@ -57,5 +57,12 @@ export function everyoneStats(players, plays) {
     .sort((a, b) => b.wins - a.wins || b.played - a.played || a.player.initials.localeCompare(b.player.initials));
 }
 
+// How many counted games a guest won (alone or shared). These are in Played
+// but in nobody's table wins, so the table notes them.
+export function gamesWonByGuests(plays, players) {
+  const core = new Set(corePlayers(players).map(p => p.id));
+  return live(plays).filter(p => p.counted && !p.test && p.winnerIds.some(id => !core.has(id))).length;
+}
+
 // Round a share like 0.333… for display: "1", "0.5", "0.33".
 export const fmtWins = (n) => String(Math.round(n * 100) / 100);

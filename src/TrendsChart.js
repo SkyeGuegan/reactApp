@@ -4,13 +4,13 @@ import Spinner from 'react-bootstrap/Spinner';
 import { fetchAllPages } from './api';
 import { listScoreEvents } from './graphql/customQueries';
 import { buildCumulativeSeries } from './trends';
+import { fmtPlayDate } from './dates';
 
 // Line colors, cycled if there are more players than entries.
 const COLORS = ['#8a6d18', '#2c7be5', '#d6336c', '#2fb344', '#9b51e0', '#e8590c', '#0ca678', '#495057'];
 
 // Axis ticks: "Jan 2025". Tooltip: the full date.
 const fmtMonth = (ms) => new Date(ms).toLocaleDateString([], { month: 'short', year: 'numeric' });
-const fmtDate = (ms) => new Date(ms).toLocaleDateString();
 
 // The x-axis is real time (ms since epoch), so quiet months show as flat
 // stretches instead of being squeezed out. A final point at "now" carries the
@@ -39,7 +39,9 @@ function monthTicks(min, max) {
 // over time. Players are derived from the events' denormalized initials, so the
 // legend stays correct even after a rename/delete.
 // With `gameId`, only that game's history is charted (a game's page).
-export default function TrendsChart({ gameId = null } = {}) {
+export default function TrendsChart({ gameId = null, exactDates = false } = {}) {
+  // Tooltip date: exact day for admins, month for visitors.
+  const fmtDate = (ms) => fmtPlayDate(ms, exactDates);
   const [series, setSeries] = useState([]);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);

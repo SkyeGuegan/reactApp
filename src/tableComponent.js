@@ -32,7 +32,7 @@ function GameName({ game }) {
 }
 
 function tableComponent(props) {
-  const { games = [], players = [], gameScores = [], loading, error = false, editing = false, onIncrement, playedCounts } = props;
+  const { games = [], players = [], gameScores = [], loading, error = false, editing = false, onIncrement, playedCounts, guestWonGames = 0 } = props;
 
   // (gameId#playerId) -> GameScore cell
   const lookup = new Map(gameScores.map(gs => [`${gs.gameId}#${gs.playerId}`, gs]));
@@ -158,6 +158,11 @@ function tableComponent(props) {
           {totalRow()}
         </tbody>
       </Table>
+      {playedCounts && guestWonGames > 0 && (
+        <p className="board-note mb-0">
+          Played includes {guestWonGames} {guestWonGames === 1 ? 'game' : 'games'} won by guests.
+        </p>
+      )}
       {games.some(g => g.imageUrl || g.bggId) && (
         <p className="board-credit mb-0">
           Box art from <a href="https://boardgamegeek.com" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>

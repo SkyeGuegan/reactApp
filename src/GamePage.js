@@ -4,7 +4,7 @@ import TrendsChart from './TrendsChart';
 import { gameStandings, playsForGame, fmtPercent } from './gameStats';
 import { fmtWins } from './plays';
 
-const fmtDay = (iso) => new Date(iso).toLocaleDateString([], { dateStyle: 'medium' });
+import { fmtPlayDate } from './dates';
 
 // One game's page: box art + BoardGameGeek link, standings with win rates,
 // wins over time for this game, and its recorded games. Admins also get
@@ -18,7 +18,9 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
     return () => { document.title = prev; };
   }, [game.name]);
 
-  const { rows, leaderIds } = gameStandings(game, corePlayers, gameScores, played);
+  const fmtDay = (iso) => fmtPlayDate(iso, isAdmin); // exact day for admins, month for visitors
+  const { rows, leaderIds } = gameStandings(game, corePlayers, gameScores, played, { plays, players });
+  const hasGuests = rows.some(r => r.guest);
   const recent = playsForGame(game.id, plays, isAdmin);
   const lastReal = recent.find(p => !p.test);
   const byId = new Map(players.map(p => [p.id, p.initials]));
@@ -58,7 +60,10 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
         <tbody>
           {rows.map(r => (
             <tr key={r.player.id}>
-              <td className="fw-semibold">{r.player.initials}{leaderIds.has(r.player.id) && ' 👑'}</td>
+              <td className="fw-semibold">
+                {r.player.initials}{leaderIds.has(r.player.id) && ' 👑'}
+                {r.guest && <span className="text-muted small fw-normal ms-2">guest</span>}
+              </td>
               <td className="text-center">{fmtWins(r.wins)}</td>
               <td className="text-center">{fmtPercent(r.rate)}</td>
               <td aria-hidden="true">
@@ -68,10 +73,13 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
           ))}
         </tbody>
       </Table>
-      <p className="text-muted small">Win rate = wins ÷ games played with everyone at the table.</p>
+      <p className="text-muted small">
+        Win rate = wins ÷ games played with everyone at the table.
+        {hasGuests && ' Guests count only individually recorded games.'}
+      </p>
 
       <h3 className="manage-subtitle mt-4">Wins over time</h3>
-      <TrendsChart gameId={game.id} />
+      <TrendsChart gameId={game.id} exactDates={isAdmin} />
 
       <h3 className="manage-subtitle mt-4">Recent games</h3>
       {recent.length === 0 ? (

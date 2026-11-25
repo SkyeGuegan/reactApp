@@ -2,8 +2,20 @@ import React, { useState } from 'react';
 import { Table, Badge, Button, Modal } from 'react-bootstrap';
 import { everyoneStats, fmtWins } from './plays';
 
-const fmtDay = (iso) => new Date(iso).toLocaleDateString([], { dateStyle: 'medium' });
+import { fmtPlayDate } from './dates';
 const PAGE = 20;
+
+// What voiding a game does, in words, for the confirmation. Only counted games
+// are in Played; only a core player's win is on the main table.
+export function voidEffect(play, players) {
+  if (play.test) return "It's a test game, so nothing else changes.";
+  if (!play.counted) return "It wasn't counted on the main table, so no scores or Played counts change.";
+  const coreIds = new Set(players.filter(p => p.core && !p.hidden).map(p => p.id));
+  const coreWon = play.winnerIds.some(id => coreIds.has(id));
+  return coreWon
+    ? 'Its win comes off the main table and it drops out of Played.'
+    : 'A guest won, so no table wins change; it drops out of Played.';
+}
 
 // Secondary view: every recorded game, including ones that don't count on the
 // main table (someone missing) and guests' results.
@@ -23,6 +35,7 @@ export default function AllGames({ plays, players, isAdmin, onVoid }) {
     .sort((a, b) => (a.playedAt < b.playedAt ? 1 : a.playedAt > b.playedAt ? -1 : 0));
   const stats = everyoneStats(players, plays);
   const realPlays = visiblePlays.filter(p => !p.test);
+  const fmtDay = (iso) => fmtPlayDate(iso, isAdmin); // exact day for admins, month for visitors
   const since = realPlays.length ? fmtDay(realPlays[realPlays.length - 1].playedAt) : null;
 
   async function confirmVoid() {
@@ -89,7 +102,7 @@ export default function AllGames({ plays, players, isAdmin, onVoid }) {
         <Modal.Header closeButton={!busy}><Modal.Title>Void this game?</Modal.Title></Modal.Header>
         <Modal.Body>
           {pending && <>Void <strong>{pending.gameName}</strong> on {fmtDay(pending.playedAt)} (won by {pending.winnerIds.map(name).join(' & ')})?
-            {pending.counted && ' The win comes off the main table.'} The record is kept, marked voided.</>}
+            {' '}{voidEffect(pending, players)} The record is kept, marked voided.</>}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" disabled={busy} onClick={() => setPending(null)}>Cancel</Button>

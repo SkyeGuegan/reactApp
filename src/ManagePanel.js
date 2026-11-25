@@ -7,7 +7,7 @@ import ArtworkDialog from './ArtworkDialog';
 //   Add     — labelled forms for a new game / player (validated here).
 //   Roster  — games and players; a ⋯ menu per row with Delete (and, for
 //             games, Set artwork).
-//   History — the ScoreEvent ledger with Void (loads when first opened).
+//   Score changes — the ScoreEvent ledger with Void (loads when first opened).
 //
 // Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials, core)
 // resolve true on success (so the input clears), onRequestDelete(kind, item)
@@ -16,7 +16,7 @@ import ArtworkDialog from './ArtworkDialog';
 export default function ManagePanel({
   games, players, playerTotals,
   onAddGame, onAddPlayer, onRequestDelete, onSetArt,
-  onVoid, lastEvent, lastVoidedId,
+  onVoid, onVoidPlay, plays, lastEvent, lastVoidedId,
 }) {
   const [newGame, setNewGame] = useState('');
   const [newPlayer, setNewPlayer] = useState('');
@@ -154,8 +154,8 @@ export default function ManagePanel({
           </Row>
         </Tab>
 
-        <Tab eventKey="history" title="History">
-          <ScoreHistory onVoid={onVoid} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
+        <Tab eventKey="history" title="Score changes">
+          <ScoreHistory onVoid={onVoid} onVoidPlay={onVoidPlay} plays={plays} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
         </Tab>
       </Tabs>
       <ArtworkDialog game={artGame} onHide={() => setArtGame(null)} onSave={(art) => onSetArt(artGame, art)} />

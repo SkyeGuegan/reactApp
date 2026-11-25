@@ -94,3 +94,11 @@ test('no credit line when no game has artwork', () => {
   render(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} />);
   expect(screen.queryByText(/BoardGameGeek/)).toBeNull();
 });
+
+test('notes games won by guests under the table when there are any', () => {
+  const playedCounts = new Map([['g1', 7], ['g2', 4]]);
+  const { rerender } = render(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} playedCounts={playedCounts} guestWonGames={2} />);
+  expect(screen.getByText('Played includes 2 games won by guests.')).toBeInTheDocument();
+  rerender(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} playedCounts={playedCounts} guestWonGames={0} />);
+  expect(screen.queryByText(/won by guests/)).toBeNull();
+});

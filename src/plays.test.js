@@ -1,4 +1,4 @@
-import { corePlayers, classifyPlay, winShares, playedCounts, everyoneStats, fmtWins } from './plays';
+import { corePlayers, classifyPlay, winShares, playedCounts, everyoneStats, fmtWins, gamesWonByGuests } from './plays';
 
 const SG = { id: 'sg', initials: 'SG', core: true };
 const NI = { id: 'ni', initials: 'NI', core: true };
@@ -54,4 +54,16 @@ test('everyone stats cover all non-test plays, including ones that did not count
 test('fmtWins trims long fractions', () => {
   expect(fmtWins(1)).toBe('1');
   expect(fmtWins(1 / 3)).toBe('0.33');
+});
+
+test('gamesWonByGuests counts counted, live, non-test games a guest won', () => {
+  const plays = [
+    { counted: true, winnerIds: ['ab'] },
+    { counted: true, winnerIds: ['sg', 'ab'] },
+    { counted: true, winnerIds: ['sg'] },
+    { counted: false, winnerIds: ['ab'] },
+    { counted: true, winnerIds: ['ab'], voided: true },
+    { counted: true, winnerIds: ['t'], test: true },
+  ];
+  expect(gamesWonByGuests(plays, players)).toBe(2);
 });

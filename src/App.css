@@ -472,3 +472,27 @@
   --bs-btn-color: #ced4da; --bs-btn-border-color: #6c757d;
   --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #343a40; --bs-btn-hover-border-color: #adb5bd;
 }
+
+/* Header title + trophy link home. Looks like the plain title (no underline,
+   as with any site logo); a visible focus ring for keyboard users. */
+.home-link,
+.home-link:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  color: inherit;
+  text-decoration: none;
+}
+.home-link:focus-visible {
+  outline: 2px solid #d4a72c;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Note under the table explaining why Played can exceed the wins shown. */
+.board-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: left;
+  padding: 6px 10px 0;
+}

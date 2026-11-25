@@ -40,3 +40,29 @@ test('game addresses use readable slugs and parse back', () => {
   expect(parseRoute('')).toEqual({ page: 'board' });
   expect(parseRoute('#/')).toEqual({ page: 'board' });
 });
+
+test('guests from recorded plays join the standings, with their own win rate', () => {
+  const CR = { id: 'cr', initials: 'CR' };
+  const T = { id: 't', initials: 'TEST', hidden: true };
+  const five = { id: 'g5', name: 'Five Crowns' };
+  const plays = [
+    { gameId: 'g5', playerIds: ['sg', 'mg', 'ni', 'cr'], winnerIds: ['cr'] },
+    { gameId: 'g5', playerIds: ['sg', 'mg', 'ni', 'cr'], winnerIds: ['sg', 'cr'], voided: true },
+    { gameId: 'g5', playerIds: ['sg', 't'], winnerIds: ['t'], test: true },
+    { gameId: 'g1', playerIds: ['sg', 'cr'], winnerIds: ['cr'] },
+  ];
+  const { rows, leaderIds } = gameStandings(five, [SG, MG, NI], [], 1, { plays, players: [SG, MG, NI, CR, T] });
+  expect(rows.map(r => [r.player.initials, r.wins, fmtPercent(r.rate), r.guest])).toEqual([
+    ['CR', 1, '100%', true], ['MG', 0, '0%', false], ['NI', 0, '0%', false], ['SG', 0, '0%', false],
+  ]);
+  expect([...leaderIds]).toEqual(['cr']);
+});
+
+test('a core player stays above a guest on equal wins', () => {
+  const CR = { id: 'cr', initials: 'CR' };
+  const plays = [{ gameId: 'g1', playerIds: ['sg', 'mg', 'ni', 'cr'], winnerIds: ['cr'] }];
+  const s = [{ gameId: 'g1', playerId: 'sg', score: 1 }];
+  const { rows, leaderIds } = gameStandings(game, [SG, MG, NI], s, 2, { plays, players: [SG, MG, NI, CR] });
+  expect(rows.slice(0, 2).map(r => r.player.initials)).toEqual(['SG', 'CR']);
+  expect([...leaderIds].sort()).toEqual(['cr', 'sg']);
+});

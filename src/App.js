@@ -10,7 +10,7 @@ import TrendsChart from './TrendsChart';
 import ManagePanel from './ManagePanel';
 import RecordPlayDialog from './RecordPlayDialog';
 import AllGames from './AllGames';
-import { corePlayers, playedCounts as computePlayedCounts } from './plays';
+import { corePlayers, playedCounts as computePlayedCounts, gamesWonByGuests } from './plays';
 import ThemeMenu from './ThemeMenu';
 import { useTheme } from './theme';
 import GamePage from './GamePage';
@@ -204,6 +204,13 @@ function Scoreboard({ themeMode, onThemeChange }) {
       }
     }
 
+    // Score changes: voiding a win from a recorded game voids the whole game.
+    // Errors propagate so the list can show them.
+    async function voidPlayFromHistory(play) {
+      await voidPlay(play);
+      notify('success', `Voided the ${play.gameName} game.`);
+    }
+
     async function handleVoidPlay(play) {
       try {
         await voidPlay(play);
@@ -246,6 +253,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
     // The game whose page is open (matched by its name in the address).
     const currentGame = route.page === 'game' ? games.find(g => gameSlug(g.name) === route.slug) || null : null;
     const playedCounts = computePlayedCounts(games, plays);
+    const guestWonGames = gamesWonByGuests(plays, players);
     const playerTotals = new Map(players.map(p => [p.id, 0]));
     gameScores.forEach(gs => {
       if (playerTotals.has(gs.playerId)) {
@@ -278,7 +286,12 @@ function Scoreboard({ themeMode, onThemeChange }) {
   return (
     <div className="App">
       <header className="App-header">
-      <h1><Trophy />The Scoreboard</h1>
+      <h1>
+        {/* Title + trophy go home: the board, on the Table view, scrolled to top. */}
+        <a href="#/" className="home-link" onClick={() => { setView('table'); window.scrollTo(0, 0); }}>
+          <Trophy />The Scoreboard
+        </a>
+      </h1>
       <div className="header-action">
       {isAuthenticated
       ? <>
@@ -348,9 +361,10 @@ function Scoreboard({ themeMode, onThemeChange }) {
             editing={editMode}
             onIncrement={handleIncrement}
             playedCounts={playedCounts}
+            guestWonGames={guestWonGames}
           />
         : view === 'trends'
-          ? <TrendsChart />
+          ? <TrendsChart exactDates={isAdmin} />
           : <AllGames plays={plays} players={players} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
       </div>
       </>
@@ -372,6 +386,8 @@ function Scoreboard({ themeMode, onThemeChange }) {
         onRequestDelete={(kind, item) => setPendingDelete({ kind, item })}
         onSetArt={handleSetArt}
         onVoid={voidEvent}
+        onVoidPlay={voidPlayFromHistory}
+        plays={plays}
         lastEvent={lastEvent}
         lastVoidedId={lastVoidedId}
       />
