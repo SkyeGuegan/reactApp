@@ -164,3 +164,79 @@
   font-size: 0.9rem;
   font-weight: 500;
 }
+
+/* Admin "Manage" card: same frame as the board card so the page reads as one
+   app; left-aligned content inside. */
+.manage-card {
+  max-width: 900px;
+  margin: 0 auto 32px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  padding: 16px 20px 20px;
+  text-align: left;
+}
+.manage-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+.manage-subtitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+/* Tabs in the app's dark/gold palette instead of Bootstrap blue. */
+.manage-tabs .nav-link {
+  color: #495057;
+}
+.manage-tabs .nav-link:hover {
+  color: #212529;
+}
+.manage-tabs .nav-link.active {
+  color: #212529;
+  font-weight: 600;
+  border-bottom-color: #fff;
+  box-shadow: inset 0 3px 0 #8a6d18;
+}
+/* Long game lists scroll inside the card instead of stretching the page. */
+.roster-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+}
+/* ⋯ menu trigger: no caret, comfortable hit area. */
+.roster-menu.btn-link {
+  text-decoration: none;
+  color: #495057;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 2px 10px;
+}
+.roster-menu.dropdown-toggle::after {
+  display: none; /* beats Bootstrap's caret, which loads after this file */
+}
+@media (max-width: 600px) {
+  .manage-card {
+    margin: 0 12px 24px;
+    padding: 14px;
+  }
+  .board-card {
+    margin: 16px 12px;
+  }
+}
+
+/* Keep the Game column pinned while the table scrolls sideways (phones, or
+   many players), so you always know which row you're on. Cells already paint
+   an opaque --bs-table-bg, so stripes and the dark Total row still show.
+   (No box-shadow here: Bootstrap draws the stripes with it.) */
+.board-card th:first-child,
+.board-card td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+@media (max-width: 600px) {
+  .score-stepper {
+    gap: 4px;
+  }
+}

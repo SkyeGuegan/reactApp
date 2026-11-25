@@ -12,11 +12,10 @@ const fmtTime = (iso) => {
 };
 
 // Admin-only list of recent score changes (the ScoreEvent ledger), newest
-// first, with a Void action for bogus entries. Events are fetched lazily when
-// the panel is opened. `onVoid(event)` reverses the event (see useScoreboard);
+// first, with a Void action for bogus entries. Events are fetched when this
+// mounts (the Manage card's History tab mounts it on first open). `onVoid(event)` reverses the event (see useScoreboard);
 // `lastEvent` is the newest event logged this session, prepended while open.
 export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
-  const [open, setOpen] = useState(false);
   const [events, setEvents] = useState(null); // null = not loaded yet
   const [error, setError] = useState('');
   const [shown, setShown] = useState(PAGE);
@@ -24,7 +23,7 @@ export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open || events) return undefined;
+    if (events) return undefined;
     let active = true;
     fetchAllPages(listScoreEvents, 'listScoreEvents')
       .then(items => { if (active) setEvents(sortNewestFirst(items)); })
@@ -33,7 +32,7 @@ export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
         if (active) setError("Couldn't load the score history.");
       });
     return () => { active = false; };
-  }, [open, events]);
+  }, [events]);
 
   // Show changes made after the list loaded. Skip ones already present (e.g. an
   // event logged just before the fetch returned it).
@@ -57,27 +56,19 @@ export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
       setEvents(prev => prev.map(e => (e.id === event.id ? { ...e, voided: true } : e)));
     } catch (err) {
       console.error('Failed to void event', err);
-      setError(err.userMessage || 'Couldn\'t void that change — it may already have been voided. Reopen the history to refresh.');
+      setError(err.userMessage || 'Couldn\'t void that change — it may already have been voided. Click Refresh to reload.');
     } finally {
       setBusy(false);
       setPending(null);
     }
   }
 
-  if (!open) {
-    return (
-      <div className="mb-3">
-        <Button variant="outline-dark" size="sm" onClick={() => setOpen(true)}>Show score history</Button>
-      </div>
-    );
-  }
-
   return (
     <div className="mb-3">
       <div className="d-flex align-items-center justify-content-between mb-2">
-        <strong>Score history</strong>
-        <Button variant="link" size="sm" className="p-0" onClick={() => { setOpen(false); setEvents(null); setShown(PAGE); setError(''); }}>
-          Hide
+        <span className="text-muted small">Every score change, newest first. Voiding reverses it and keeps the record.</span>
+        <Button variant="outline-secondary" size="sm" disabled={!events && !error} onClick={() => { setEvents(null); setShown(PAGE); setError(''); }}>
+          Refresh
         </Button>
       </div>
       {error && <div className="text-danger small mb-2">{error}</div>}
@@ -87,7 +78,7 @@ export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
         <>
           <Table size="sm" responsive className="mb-1 small">
             <thead>
-              <tr><th>When</th><th>Game</th><th>Player</th><th>Change</th><th>By</th><th /></tr>
+              <tr><th>When</th><th>Game</th><th>Player</th><th>Change</th><th className="d-none d-sm-table-cell">By</th><th /></tr>
             </thead>
             <tbody>
               {events.slice(0, shown).map(e => (
@@ -96,7 +87,7 @@ export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
                   <td>{e.voided ? <s>{e.gameName || '?'}</s> : (e.gameName || '?')}</td>
                   <td>{e.playerInitials || '?'}</td>
                   <td>{formatDelta(e.delta)}</td>
-                  <td>{e.recordedBy || ''}</td>
+                  <td className="d-none d-sm-table-cell">{e.recordedBy || ''}</td>
                   <td className="text-end">
                     {e.voided
                       ? <Badge bg="light" text="dark">voided</Badge>

@@ -3,11 +3,11 @@ import './App.css';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import '@aws-amplify/ui-react/styles.css';
-import { Form, InputGroup, Button, ButtonGroup, Badge, Modal, Toast, ToastContainer } from 'react-bootstrap';
+import { Button, ButtonGroup, Modal, Toast, ToastContainer } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import TableComponent from './tableComponent';
 import TrendsChart from './TrendsChart';
-import ScoreHistory from './ScoreHistory';
+import ManagePanel from './ManagePanel';
 import useScoreboard from './useScoreboard';
 import { formatDelta } from './history';
 
@@ -40,10 +40,6 @@ function Scoreboard() {
     const { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
     const [view, setView] = useState('table'); // 'table' | 'trends'
-    const [newGame, setNewGame] = useState('');
-    const [newPlayer, setNewPlayer] = useState('');
-    const [gameError, setGameError] = useState('');
-    const [playerError, setPlayerError] = useState('');
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
     // Admin edit mode: −/+ in the table cells. While editing, player columns
@@ -53,6 +49,8 @@ function Scoreboard() {
     const [frozenOrder, setFrozenOrder] = useState([]);
     // One notice at a time: { id, variant: 'success' | 'danger', message, undoEvent? }.
     const [notice, setNotice] = useState(null);
+    // Pause the notice's auto-hide while the pointer or focus is on it.
+    const [noticeHeld, setNoticeHeld] = useState(false);
 
     const isAuthenticated = authStatus === 'authenticated' && user;
     const inAdminGroup = useIsAdmin(isAuthenticated ? user : null);
@@ -61,41 +59,31 @@ function Scoreboard() {
 
     function notify(variant, message, undoEvent = null) {
       setNotice({ id: Date.now(), variant, message, undoEvent });
+      setNoticeHeld(false);
     }
     const failed = (what, err) => notify('danger', (err && err.userMessage) || `Couldn't ${what}. Check your connection and try again.`);
 
-    // Validate (non-empty, no duplicate) then delegate the server work to the hook.
-    async function submitGame() {
-      const name = newGame.trim();
-      if (!name) return;
-      if (games.some(g => g.name.toLowerCase() === name.toLowerCase())) {
-        setGameError(`Game "${name}" already exists.`);
-        return;
-      }
-      setGameError('');
+    // Server side of the Manage card's Add forms (which validate first).
+    // Resolve true on success so the form clears its input.
+    async function handleAddGame(name) {
       try {
         await addGame(name);
-        setNewGame('');
         notify('success', `Added game ${name}.`);
+        return true;
       } catch (err) {
         failed(`add ${name}`, err);
+        return false;
       }
     }
 
-    async function submitPlayer() {
-      const initials = newPlayer.trim();
-      if (!initials) return;
-      if (players.some(p => p.initials.toLowerCase() === initials.toLowerCase())) {
-        setPlayerError(`Player "${initials}" already exists.`);
-        return;
-      }
-      setPlayerError('');
+    async function handleAddPlayer(initials) {
       try {
         await addPlayer(initials);
-        setNewPlayer('');
         notify('success', `Added player ${initials}.`);
+        return true;
       } catch (err) {
         failed(`add ${initials}`, err);
+        return false;
       }
     }
 
@@ -232,71 +220,17 @@ function Scoreboard() {
       }
       {isAdmin
       ?
-      <div style={{ maxWidth: 640, margin: '20px auto', textAlign: 'left', padding: '0 12px' }}>
-          <Form className="mb-2" onSubmit={e => { e.preventDefault(); submitGame(); }}>
-            <InputGroup>
-              <Form.Control
-                value={newGame}
-                onChange={e => { setNewGame(e.target.value); setGameError(''); }}
-                placeholder="New game name"
-                isInvalid={!!gameError}
-              />
-              <Button type="submit" disabled={!newGame.trim()}>Add Game</Button>
-            </InputGroup>
-            {gameError && <div className="text-danger small mt-1">{gameError}</div>}
-          </Form>
-
-          <Form className="mb-3" onSubmit={e => { e.preventDefault(); submitPlayer(); }}>
-            <InputGroup>
-              <Form.Control
-                value={newPlayer}
-                onChange={e => { setNewPlayer(e.target.value); setPlayerError(''); }}
-                placeholder="New player initials"
-                isInvalid={!!playerError}
-              />
-              <Button type="submit" disabled={!newPlayer.trim()}>Add Player</Button>
-            </InputGroup>
-            {playerError && <div className="text-danger small mt-1">{playerError}</div>}
-          </Form>
-
-          <div className="mb-3">
-            <strong className="me-2">Players:</strong>
-            {sortedPlayers.length === 0 && <span className="text-muted">none yet</span>}
-            {sortedPlayers.map(player => (
-              <span key={player.id} className="me-3">
-                <Badge bg="secondary">{player.initials}</Badge>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-danger p-0 ms-1"
-                  onClick={() => setPendingDelete({ kind: 'player', item: player })}
-                >
-                  remove
-                </Button>
-              </span>
-            ))}
-          </div>
-
-          <div className="mb-3">
-            <strong className="me-2">Games:</strong>
-            {sortedGames.length === 0 && <span className="text-muted">none yet</span>}
-            {sortedGames.map(game => (
-              <span key={game.id} className="me-3 d-inline-block">
-                <Badge bg="secondary">{game.name}</Badge>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-danger p-0 ms-1"
-                  onClick={() => setPendingDelete({ kind: 'game', item: game })}
-                >
-                  remove
-                </Button>
-              </span>
-            ))}
-          </div>
-
-          <ScoreHistory onVoid={voidEvent} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
-      </div>
+      <ManagePanel
+        games={sortedGames}
+        players={sortedPlayers}
+        playerTotals={playerTotals}
+        onAddGame={handleAddGame}
+        onAddPlayer={handleAddPlayer}
+        onRequestDelete={(kind, item) => setPendingDelete({ kind, item })}
+        onVoid={voidEvent}
+        lastEvent={lastEvent}
+        lastVoidedId={lastVoidedId}
+      />
       : isAuthenticated
           ? <h3>Hello, {user.username} you are not authorized to enter data</h3>
           : null
@@ -327,8 +261,12 @@ function Scoreboard() {
             key={notice.id}
             bg={notice.variant === 'danger' ? 'danger' : 'dark'}
             onClose={() => setNotice(null)}
-            delay={notice.variant === 'danger' ? 10000 : 5000}
-            autohide
+            delay={notice.variant === 'danger' ? 12000 : 8000}
+            autohide={!noticeHeld}
+            onMouseEnter={() => setNoticeHeld(true)}
+            onMouseLeave={() => setNoticeHeld(false)}
+            onFocus={() => setNoticeHeld(true)}
+            onBlur={() => setNoticeHeld(false)}
           >
             <Toast.Body className="d-flex align-items-center gap-3 text-white" role={notice.variant === 'danger' ? 'alert' : 'status'}>
               <span className="flex-grow-1">{notice.message}</span>
