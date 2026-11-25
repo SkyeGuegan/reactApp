@@ -212,7 +212,7 @@ function Scoreboard() {
                   return (
                     <span key={player.id} className="me-3 d-inline-block mb-1">
                       {player.initials}:
-                      <Button variant="outline-secondary" size="sm" className="ms-1" onClick={() => increment(cell, -1)}>−</Button>
+                      <Button variant="outline-secondary" size="sm" className="ms-1" disabled={cell.score < 1} onClick={() => increment(cell, -1)}>−</Button>
                       <span className="mx-2">{cell.score}</span>
                       <Button variant="outline-secondary" size="sm" onClick={() => increment(cell, 1)}>+</Button>
                     </span>

@@ -6,7 +6,10 @@
 
 ## Atomic DynamoDB increment of a single GameScore cell. ADD treats a missing
 ## attribute as 0. attribute_exists(id) ensures we only update an existing row,
-## never create one.
+## never create one. For decrements the condition also requires
+## score >= -delta, so a score can never go below 0; it's checked atomically
+## with the update and fails with ConditionalCheckFailedException.
+#set( $min = $ctx.args.delta * -1 )
 {
   "version": "2018-05-29",
   "operation": "UpdateItem",
@@ -22,7 +25,19 @@
       ":delta": $util.dynamodb.toDynamoDBJson($ctx.args.delta)
     }
   },
+#if( $ctx.args.delta < 0 )
+  "condition": {
+    "expression": "attribute_exists(id) AND #cur >= :min",
+    "expressionNames": {
+      "#cur": "score"
+    },
+    "expressionValues": {
+      ":min": $util.dynamodb.toDynamoDBJson($min)
+    }
+  }
+#else
   "condition": {
     "expression": "attribute_exists(id)"
   }
+#end
 }

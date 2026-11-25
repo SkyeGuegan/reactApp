@@ -1,4 +1,11 @@
-import { sortNewestFirst, cellForEvent, formatDelta } from './history';
+import { sortNewestFirst, cellForEvent, formatDelta, canApplyDelta } from './history';
+
+test('canApplyDelta never lets a score go below 0', () => {
+  expect(canApplyDelta(1, -1)).toBe(true);
+  expect(canApplyDelta(0, -1)).toBe(false);
+  expect(canApplyDelta(0.5, -1)).toBe(false);
+  expect(canApplyDelta(0, 1)).toBe(true);
+});
 
 test('sortNewestFirst orders by createdAt descending without mutating input', () => {
   const events = [

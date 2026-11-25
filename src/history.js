@@ -13,6 +13,12 @@ export function cellForEvent(event, gameScores) {
   return gameScores.find(gs => gs.gameId === event.gameId && gs.playerId === event.playerId) || null;
 }
 
+// Scores never go below 0. The incrementScore resolver enforces the same rule
+// server-side; this lets the UI refuse early with a clear message.
+export function canApplyDelta(score, delta) {
+  return score + delta >= 0;
+}
+
 // "+1", "−1", "+0.5" — signed, with a real minus sign.
 export function formatDelta(delta) {
   return delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`;

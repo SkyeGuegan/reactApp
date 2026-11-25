@@ -12,7 +12,7 @@ import {
   createScoreEvent as createScoreEventMutation,
   updateScoreEvent as updateScoreEventMutation,
 } from './graphql/customMutations';
-import { cellForEvent } from './history';
+import { cellForEvent, canApplyDelta } from './history';
 
 // Owns the scoreboard's board data (games, players, GameScore cells) and the
 // admin mutations that change them, so App.js stays a view layer. `user` is the
@@ -82,6 +82,7 @@ export default function useScoreboard(user) {
   }
 
   async function increment(cell, delta) {
+    if (!canApplyDelta(cell.score, delta)) return; // scores never go below 0
     // Optimistically reflect the change, keep the old list for rollback.
     const previous = gameScores;
     setGameScores(gameScores.map(gs => (gs.id === cell.id ? { ...gs, score: gs.score + delta } : gs)));
@@ -161,6 +162,12 @@ export default function useScoreboard(user) {
   // (not `increment`, which would log a new event). If the adjustment fails the
   // void is undone. Throws on failure so the caller can show a message.
   async function voidEvent(event) {
+    const target = cellForEvent(event, gameScores);
+    if (target && !canApplyDelta(target.score, -event.delta)) {
+      const err = new Error('Voiding this would make the score negative.');
+      err.userMessage = `Can't void this: ${event.playerInitials || 'the player'}'s score in ${event.gameName || 'this game'} would drop below 0.`;
+      throw err;
+    }
     await client.graphql({
       query: updateScoreEventMutation,
       // NOT(voided = true) also passes for rows that never had `voided` set.

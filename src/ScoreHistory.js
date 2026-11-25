@@ -51,7 +51,7 @@ export default function ScoreHistory({ onVoid, lastEvent }) {
       setEvents(prev => prev.map(e => (e.id === event.id ? { ...e, voided: true } : e)));
     } catch (err) {
       console.error('Failed to void event', err);
-      setError('Couldn\'t void that change — it may already have been voided. Reopen the history to refresh.');
+      setError(err.userMessage || 'Couldn\'t void that change — it may already have been voided. Reopen the history to refresh.');
     } finally {
       setBusy(false);
       setPending(null);
