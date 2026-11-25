@@ -73,15 +73,24 @@ export const createScoreEvent = /* GraphQL */ `
   mutation CreateScoreEvent($input: CreateScoreEventInput!) {
     createScoreEvent(input: $input) {
       id
+      gameId
+      playerId
+      playerInitials
+      gameName
+      delta
+      recordedBy
+      voided
+      createdAt
     }
   }
 `;
 
 // Soft-delete (void) an event instead of hard-deleting it — pass
-// { id, voided: true }. For use by a future graph/admin UI; preserves history.
+// { id, voided: true }. Preserves the row and its audit trail. Pass
+// condition { not: { voided: { eq: true } } } so an event can't be voided twice.
 export const updateScoreEvent = /* GraphQL */ `
-  mutation UpdateScoreEvent($input: UpdateScoreEventInput!) {
-    updateScoreEvent(input: $input) {
+  mutation UpdateScoreEvent($input: UpdateScoreEventInput!, $condition: ModelScoreEventConditionInput) {
+    updateScoreEvent(input: $input, condition: $condition) {
       id
       voided
     }

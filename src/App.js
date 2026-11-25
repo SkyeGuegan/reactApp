@@ -7,6 +7,7 @@ import { Form, InputGroup, Button, ButtonGroup, Badge, Modal } from 'react-boots
 import 'bootstrap/dist/css/bootstrap.min.css';
 import TableComponent from './tableComponent';
 import TrendsChart from './TrendsChart';
+import ScoreHistory from './ScoreHistory';
 import useScoreboard from './useScoreboard';
 
 // Key for looking up the GameScore cell at (game, player).
@@ -38,7 +39,7 @@ function useIsAdmin(user) {
 
 function Scoreboard() {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
-    const { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer } = useScoreboard(user);
+    const { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
     const [view, setView] = useState('table'); // 'table' | 'trends'
     const [newGame, setNewGame] = useState('');
@@ -221,6 +222,8 @@ function Scoreboard() {
               </div>
             ))}
           </div>
+
+          <ScoreHistory onVoid={voidEvent} lastEvent={lastEvent} />
       </div>
       : isAuthenticated
           ? <h3>Hello, {user.username} you are not authorized to enter data</h3>

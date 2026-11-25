@@ -10,7 +10,9 @@ import {
   deleteGameScore as deleteGameScoreMutation,
   incrementScore as incrementScoreMutation,
   createScoreEvent as createScoreEventMutation,
+  updateScoreEvent as updateScoreEventMutation,
 } from './graphql/customMutations';
+import { cellForEvent } from './history';
 
 // Owns the scoreboard's board data (games, players, GameScore cells) and the
 // admin mutations that change them, so App.js stays a view layer. `user` is the
@@ -21,6 +23,9 @@ export default function useScoreboard(user) {
   const [players, setPlayers] = useState([]);
   const [gameScores, setGameScores] = useState([]);
   const [loading, setLoading] = useState(true);
+  // The most recent ScoreEvent this session logged, so an open history panel
+  // can show it without refetching the whole ledger.
+  const [lastEvent, setLastEvent] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -93,7 +98,7 @@ export default function useScoreboard(user) {
       try {
         const player = players.find(p => p.id === cell.playerId);
         const game = games.find(g => g.id === cell.gameId);
-        await client.graphql({
+        const eventRes = await client.graphql({
           query: createScoreEventMutation,
           variables: {
             input: {
@@ -107,6 +112,7 @@ export default function useScoreboard(user) {
           },
           authMode: 'userPool',
         });
+        setLastEvent(eventRes.data.createScoreEvent);
       } catch (eventErr) {
         console.warn('Score updated but failed to log history event', eventErr);
       }
@@ -148,5 +154,34 @@ export default function useScoreboard(user) {
     }
   }
 
-  return { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer };
+  // Void a bogus ScoreEvent and reverse its effect on the current total, so the
+  // table (GameScore) and the Trends graph (non-voided events) keep agreeing.
+  // The event is voided first — conditionally, so two admins can't void it
+  // twice — then the cell is adjusted by -delta directly via incrementScore
+  // (not `increment`, which would log a new event). If the adjustment fails the
+  // void is undone. Throws on failure so the caller can show a message.
+  async function voidEvent(event) {
+    await client.graphql({
+      query: updateScoreEventMutation,
+      // NOT(voided = true) also passes for rows that never had `voided` set.
+      variables: { input: { id: event.id, voided: true }, condition: { not: { voided: { eq: true } } } },
+      authMode: 'userPool',
+    });
+    const cell = cellForEvent(event, gameScores);
+    if (!cell) return;
+    try {
+      const res = await client.graphql({ query: incrementScoreMutation, variables: { id: cell.id, delta: -event.delta }, authMode: 'userPool' });
+      const updated = res.data.incrementScore;
+      setGameScores(prev => prev.map(gs => (gs.id === updated.id ? { ...gs, score: updated.score } : gs)));
+    } catch (err) {
+      await client.graphql({
+        query: updateScoreEventMutation,
+        variables: { input: { id: event.id, voided: false } },
+        authMode: 'userPool',
+      }).catch(undoErr => console.error('Failed to undo void after score adjustment failed', undoErr));
+      throw err;
+    }
+  }
+
+  return { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent };
 }
