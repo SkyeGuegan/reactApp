@@ -3,6 +3,7 @@ import Spinner from 'react-bootstrap/Spinner';
 import './App.css';
 
 import Table from 'react-bootstrap/Table';
+import { gameHref } from './route';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Renders a dynamic scoreboard: one column per player (from props.players),
@@ -16,6 +17,20 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 // With `playedCounts` (Map gameId -> games played) a muted Played column is
 // added on the right, set off from the player columns by a divider; the bottom
 // row (then labelled "Totals") shows the overall count.
+// Game name with its box-art thumbnail (hidden if the image fails to load),
+// linking to the game's own page.
+function GameName({ game }) {
+  const [artFailed, setArtFailed] = React.useState(false);
+  const art = game.imageUrl && !artFailed
+    ? <img className="game-art" src={game.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setArtFailed(true)} />
+    : null;
+  return (
+    <a className="game-name game-link" href={gameHref(game)} title={`${game.name}: standings and history`}>
+      {art}<span>{game.name}</span>
+    </a>
+  );
+}
+
 function tableComponent(props) {
   const { games = [], players = [], gameScores = [], loading, error = false, editing = false, onIncrement, playedCounts } = props;
 
@@ -71,7 +86,7 @@ function tableComponent(props) {
     const max = rowScores.length ? Math.max(...rowScores) : 0;
     return (
       <tr key={game.id}>
-        <td>{game.name}</td>
+        <td><GameName game={game} /></td>
         {players.map((p, i) => (
           <td key={p.id} style={numCol}>
             {scoreCell(game, p, rowScores[i], rowScores[i] >= max)}
@@ -143,6 +158,11 @@ function tableComponent(props) {
           {totalRow()}
         </tbody>
       </Table>
+      {games.some(g => g.imageUrl || g.bggId) && (
+        <p className="board-credit mb-0">
+          Box art from <a href="https://boardgamegeek.com" target="_blank" rel="noopener noreferrer">BoardGameGeek</a>
+        </p>
+      )}
     </div>
   );
 }

@@ -38,7 +38,8 @@ function monthTicks(min, max) {
 // view — events grow one-per-click) and charts each player's cumulative wins
 // over time. Players are derived from the events' denormalized initials, so the
 // legend stays correct even after a rename/delete.
-export default function TrendsChart() {
+// With `gameId`, only that game's history is charted (a game's page).
+export default function TrendsChart({ gameId = null } = {}) {
   const [series, setSeries] = useState([]);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,7 @@ export default function TrendsChart() {
       try {
         const events = await fetchAllPages(listScoreEvents, 'listScoreEvents');
         if (!active) return;
-        const built = buildCumulativeSeries(events);
+        const built = buildCumulativeSeries(gameId ? events.filter(e => e.gameId === gameId) : events);
         setSeries(withTimeAxis(built.series));
         setPlayers(built.players);
       } catch (err) {
@@ -61,7 +62,7 @@ export default function TrendsChart() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [gameId]);
 
   if (loading) {
     return (

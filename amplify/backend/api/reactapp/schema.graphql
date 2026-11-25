@@ -34,6 +34,10 @@ type Game
   id: ID!
   name: String!
   baselinePlays: Float
+  # BoardGameGeek id (links the game name to its BGG page) and box-art image URL
+  # (shown as a thumbnail; any https image URL works).
+  bggId: Int
+  imageUrl: String
 }
 
 # One player's score in one game (a single cell of the board). Adding a player

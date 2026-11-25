@@ -28,6 +28,21 @@ export const createGame = /* GraphQL */ `
       id
       name
       baselinePlays
+      bggId
+      imageUrl
+    }
+  }
+`;
+
+// Set a game's artwork / BoardGameGeek link: { id, bggId, imageUrl }.
+export const updateGame = /* GraphQL */ `
+  mutation UpdateGame($input: UpdateGameInput!) {
+    updateGame(input: $input) {
+      id
+      name
+      baselinePlays
+      bggId
+      imageUrl
     }
   }
 `;

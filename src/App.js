@@ -13,6 +13,9 @@ import AllGames from './AllGames';
 import { corePlayers, playedCounts as computePlayedCounts } from './plays';
 import ThemeMenu from './ThemeMenu';
 import { useTheme } from './theme';
+import GamePage from './GamePage';
+import ArtworkDialog from './ArtworkDialog';
+import { useRoute, gameSlug } from './route';
 import useScoreboard from './useScoreboard';
 import { formatDelta } from './history';
 
@@ -63,10 +66,13 @@ const amplifyTheme = { name: 'scoreboard', overrides: [defaultDarkModeOverride] 
 
 function Scoreboard({ themeMode, onThemeChange }) {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
-    const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, lastEvent, lastVoidedId } = useScoreboard(user);
+    const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, setGameArt, lastEvent, lastVoidedId } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
     const [view, setView] = useState('table'); // 'table' | 'trends' | 'games'
     const [showRecord, setShowRecord] = useState(false);
+    const [recordGameId, setRecordGameId] = useState(''); // game preselected in Record a game
+    const [artGame, setArtGame] = useState(null); // game page's Set artwork dialog
+    const route = useRoute();
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
     // { cell, label, from, to } while a decrease (− in edit mode) awaits confirmation.
@@ -187,6 +193,17 @@ function Scoreboard({ themeMode, onThemeChange }) {
       }
     }
 
+    async function handleSetArt(game, art) {
+      try {
+        await setGameArt(game, art);
+        notify('success', art.imageUrl || art.bggId ? `Updated artwork for ${game.name}.` : `Cleared artwork for ${game.name}.`);
+        return true;
+      } catch (err) {
+        failed(`save artwork for ${game.name}`, err);
+        return false;
+      }
+    }
+
     async function handleVoidPlay(play) {
       try {
         await voidPlay(play);
@@ -226,6 +243,8 @@ function Scoreboard({ themeMode, onThemeChange }) {
     // Main table columns: the core players only (guests and the test player
     // live in All games / the roster).
     const tablePlayers = corePlayers(players);
+    // The game whose page is open (matched by its name in the address).
+    const currentGame = route.page === 'game' ? games.find(g => gameSlug(g.name) === route.slug) || null : null;
     const playedCounts = computePlayedCounts(games, plays);
     const playerTotals = new Map(players.map(p => [p.id, 0]));
     gameScores.forEach(gs => {
@@ -274,6 +293,26 @@ function Scoreboard({ themeMode, onThemeChange }) {
       {(!showSignIn || isAuthenticated)
       ?
       <>
+      {route.page === 'game' ? (
+        <div className="board-card game-card">
+          {loading
+            ? <p className="p-3 text-muted mb-0">Loading…</p>
+            : currentGame
+              ? <GamePage
+                  game={currentGame}
+                  corePlayers={tablePlayers}
+                  players={players}
+                  gameScores={gameScores}
+                  plays={plays}
+                  played={playedCounts.get(currentGame.id) || 0}
+                  isAdmin={isAdmin}
+                  onRecord={() => { setRecordGameId(currentGame.id); setShowRecord(true); }}
+                  onSetArt={() => setArtGame(currentGame)}
+                />
+              : <div className="p-3 text-start"><a href="#/" className="game-back">← Back to the scoreboard</a><p className="mt-3 mb-0">That game isn't on the scoreboard.</p></div>}
+        </div>
+      ) : (
+      <>
       <div className="board-controls">
         <ButtonGroup size="sm">
           <Button variant={view === 'table' ? 'dark' : 'outline-dark'} onClick={() => setView('table')}>Table</Button>
@@ -294,7 +333,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
           )
           : (
             <div className="board-toolbar">
-              <Button size="sm" variant="dark" onClick={() => setShowRecord(true)}>＋ Record a game</Button>
+              <Button size="sm" variant="dark" onClick={() => { setRecordGameId(''); setShowRecord(true); }}>＋ Record a game</Button>
               <Button size="sm" variant="outline-secondary" onClick={toggleEditing}>✎ Edit scores</Button>
             </div>
           )
@@ -315,12 +354,14 @@ function Scoreboard({ themeMode, onThemeChange }) {
           : <AllGames plays={plays} players={players} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
       </div>
       </>
+      )}
+      </>
       :
       <div className="signin-wrap">
       <Authenticator hideSignUp />
       </div>
       }
-      {isAdmin
+      {isAdmin && route.page !== 'game'
       ?
       <ManagePanel
         games={sortedGames}
@@ -329,11 +370,12 @@ function Scoreboard({ themeMode, onThemeChange }) {
         onAddGame={handleAddGame}
         onAddPlayer={handleAddPlayer}
         onRequestDelete={(kind, item) => setPendingDelete({ kind, item })}
+        onSetArt={handleSetArt}
         onVoid={voidEvent}
         lastEvent={lastEvent}
         lastVoidedId={lastVoidedId}
       />
-      : isAuthenticated
+      : isAuthenticated && !isAdmin
           ? <p className="viewer-note">You're signed in as {user.username}. Only admins can change scores.</p>
           : null
       }
@@ -346,7 +388,11 @@ function Scoreboard({ themeMode, onThemeChange }) {
           players={players}
           onSave={handleRecordPlay}
           onAddGuest={handleAddGuest}
+          initialGameId={recordGameId}
         />
+      )}
+      {isAdmin && (
+        <ArtworkDialog game={artGame} onHide={() => setArtGame(null)} onSave={(art) => handleSetArt(artGame, art)} />
       )}
 
       <Modal show={!!pendingDecrease} onHide={() => setPendingDecrease(null)} centered>

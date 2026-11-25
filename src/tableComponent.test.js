@@ -80,3 +80,17 @@ test('a failed load says so instead of claiming the board is empty', () => {
   expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the scoreboard");
   expect(screen.queryByText(/scoreboard is empty/)).toBeNull();
 });
+
+test('shows box art and links each game name to its page', () => {
+  const withArt = [{ id: 'g1', name: 'Catan', bggId: 13, imageUrl: 'https://cf.geekdo-images.com/x.png' }, games[1]];
+  const { container } = render(<TableComponent games={withArt} players={players} gameScores={gameScores} loading={false} />);
+  expect(screen.getByRole('link', { name: 'Catan' })).toHaveAttribute('href', '#/game/catan');
+  expect(screen.getByRole('link', { name: 'Hearts' })).toHaveAttribute('href', '#/game/hearts');
+  expect(container.querySelector('img.game-art')).toHaveAttribute('src', 'https://cf.geekdo-images.com/x.png');
+  expect(screen.getByText(/Box art from/)).toBeInTheDocument();
+});
+
+test('no credit line when no game has artwork', () => {
+  render(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} />);
+  expect(screen.queryByText(/BoardGameGeek/)).toBeNull();
+});

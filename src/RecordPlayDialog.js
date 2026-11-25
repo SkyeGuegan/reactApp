@@ -20,7 +20,7 @@ const toPlayedAt = (ymd) => {
 // players). The footer explains whether the game will count on the main table.
 // onSave({ gameId, playedAt, playerIds, winnerIds, allPlayers }) resolves
 // truthy on success; onAddGuest(initials) resolves to the new player.
-export default function RecordPlayDialog({ show, onHide, games, players, onSave, onAddGuest }) {
+export default function RecordPlayDialog({ show, onHide, games, players, onSave, onAddGuest, initialGameId = '' }) {
   const [gameId, setGameId] = useState('');
   const [date, setDate] = useState(todayLocal());
   const [playing, setPlaying] = useState(new Set());
@@ -43,7 +43,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
   // Fresh form each time it opens: core players ticked, nobody winning yet.
   useEffect(() => {
     if (!show) return;
-    setGameId('');
+    setGameId(initialGameId || '');
     setDate(todayLocal());
     setPlaying(new Set(coreIds ? coreIds.split(',') : []));
     setWinners(new Set());
@@ -51,7 +51,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
     setGuestError('');
     setExtraPlayers([]);
     setBusy(false);
-  }, [show, coreIds]);
+  }, [show, coreIds, initialGameId]);
 
   const toggle = (set, setter, id) => {
     const next = new Set(set);

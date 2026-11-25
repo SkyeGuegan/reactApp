@@ -4,6 +4,7 @@ import { listGames, listPlayers, listGameScores, listPlays, listScoreEvents } fr
 import {
   createGame as createGameMutation,
   deleteGame as deleteGameMutation,
+  updateGame as updateGameMutation,
   createPlayer as createPlayerMutation,
   deletePlayer as deletePlayerMutation,
   createGameScore as createGameScoreMutation,
@@ -279,5 +280,13 @@ export default function useScoreboard(user) {
     setPlays(prev => prev.map(p => (p.id === play.id ? { ...p, voided: true } : p)));
   }
 
-  return { games, players, gameScores, plays, loading, loadError, recordPlay, voidPlay, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId };
+  // Set or clear a game's artwork and BoardGameGeek id. Throws on failure.
+  async function setGameArt(game, { bggId = null, imageUrl = null }) {
+    const res = await client.graphql({ query: updateGameMutation, variables: { input: { id: game.id, bggId, imageUrl } }, authMode: 'userPool' });
+    const updated = res.data.updateGame;
+    setGames(prev => prev.map(g => (g.id === updated.id ? { ...g, ...updated } : g)));
+    return updated;
+  }
+
+  return { games, players, gameScores, plays, loading, loadError, recordPlay, voidPlay, setGameArt, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId };
 }

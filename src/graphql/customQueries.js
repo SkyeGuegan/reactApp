@@ -9,6 +9,8 @@ export const listGames = /* GraphQL */ `
         id
         name
         baselinePlays
+        bggId
+        imageUrl
       }
       nextToken
     }

@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col, Badge } from 'react-bootstrap';
 import ScoreHistory from './ScoreHistory';
+import ArtworkDialog from './ArtworkDialog';
 
 // Admin "Manage" card below the board, in three tabs:
 //   Add     — labelled forms for a new game / player (validated here).
-//   Roster  — games and players, with Delete tucked behind a ⋯ menu.
+//   Roster  — games and players; a ⋯ menu per row with Delete (and, for
+//             games, Set artwork).
 //   History — the ScoreEvent ledger with Void (loads when first opened).
 //
 // Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials, core)
 // resolve true on success (so the input clears), onRequestDelete(kind, item)
-// opens App's confirmation modal.
+// opens App's confirmation modal, onSetArt(game, { bggId, imageUrl }) resolves
+// true on success.
 export default function ManagePanel({
   games, players, playerTotals,
-  onAddGame, onAddPlayer, onRequestDelete,
+  onAddGame, onAddPlayer, onRequestDelete, onSetArt,
   onVoid, lastEvent, lastVoidedId,
 }) {
   const [newGame, setNewGame] = useState('');
@@ -20,6 +23,7 @@ export default function ManagePanel({
   const [newPlayerCore, setNewPlayerCore] = useState(false);
   const [gameError, setGameError] = useState('');
   const [playerError, setPlayerError] = useState('');
+  const [artGame, setArtGame] = useState(null); // game whose artwork dialog is open
 
   async function submitGame(e) {
     e.preventDefault();
@@ -55,6 +59,9 @@ export default function ManagePanel({
           ⋯
         </Dropdown.Toggle>
         <Dropdown.Menu>
+          {kind === 'game' && onSetArt && (
+            <Dropdown.Item onClick={() => setArtGame(item)}>Set artwork…</Dropdown.Item>
+          )}
           <Dropdown.Item className="text-danger" onClick={() => onRequestDelete(kind, item)}>
             Delete {kind}…
           </Dropdown.Item>
@@ -142,7 +149,7 @@ export default function ManagePanel({
               <h3 className="manage-subtitle">Games <span className="text-muted">({games.length})</span></h3>
               {games.length === 0
                 ? <p className="text-muted small">No games yet — add one on the Add tab.</p>
-                : <ListGroup className="roster-scroll">{games.map(g => rosterRow('game', g, g.name))}</ListGroup>}
+                : <ListGroup className="roster-scroll">{games.map(g => rosterRow('game', g, g.name, g.imageUrl ? null : 'no artwork'))}</ListGroup>}
             </Col>
           </Row>
         </Tab>
@@ -151,6 +158,7 @@ export default function ManagePanel({
           <ScoreHistory onVoid={onVoid} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
         </Tab>
       </Tabs>
+      <ArtworkDialog game={artGame} onHide={() => setArtGame(null)} onSave={(art) => onSetArt(artGame, art)} />
     </section>
   );
 }
