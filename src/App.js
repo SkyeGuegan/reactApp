@@ -42,6 +42,8 @@ function Scoreboard() {
     const [view, setView] = useState('table'); // 'table' | 'trends'
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
+    // { cell, label, from, to } while a decrease (− in edit mode) awaits confirmation.
+    const [pendingDecrease, setPendingDecrease] = useState(null);
     // Admin edit mode: −/+ in the table cells. While editing, player columns
     // keep the order they had when editing started (frozenOrder: player ids),
     // so a click that changes the leader can't move buttons under the cursor.
@@ -89,10 +91,22 @@ function Scoreboard() {
 
     // A score click from the table. On success, offer Undo (voids the event,
     // which also reverses the total).
-    async function handleIncrement(cell, delta) {
+    // Decreases ask first (they're usually fixing a mistake); increases are
+    // instant, with Undo on the notice.
+    async function handleIncrement(cell, delta, confirmed = false) {
       const player = players.find(p => p.id === cell.playerId);
       const game = games.find(g => g.id === cell.gameId);
       const label = `${player ? player.initials : '?'} ${formatDelta(delta)} in ${game ? game.name : '?'}`;
+      if (delta < 0 && !confirmed) {
+        setPendingDecrease({
+          cell, delta,
+          player: player ? player.initials : '?',
+          game: game ? game.name : '?',
+          from: cell.score,
+          to: cell.score + delta,
+        });
+        return;
+      }
       try {
         const event = await increment(cell, delta);
         if (event) notify('success', label, event);
@@ -235,6 +249,32 @@ function Scoreboard() {
           ? <h3>Hello, {user.username} you are not authorized to enter data</h3>
           : null
       }
+
+      <Modal show={!!pendingDecrease} onHide={() => setPendingDecrease(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Remove a win?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {pendingDecrease && (
+            <>Take a win away from <strong>{pendingDecrease.player}</strong> in <strong>{pendingDecrease.game}</strong>?
+            {' '}Their score goes from {pendingDecrease.from} to {pendingDecrease.to}.</>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setPendingDecrease(null)}>Cancel</Button>
+          <Button
+            variant="danger"
+            autoFocus
+            onClick={() => {
+              const { cell, delta } = pendingDecrease;
+              setPendingDecrease(null);
+              handleIncrement(cell, delta, true);
+            }}
+          >
+            Remove win
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={!!pendingDelete} onHide={() => setPendingDelete(null)} centered>
         <Modal.Header closeButton>

@@ -51,3 +51,34 @@ test('supports fractional deltas (half-point draws)', () => {
 test('handles empty input', () => {
   expect(buildCumulativeSeries([])).toEqual({ series: [], players: [] });
 });
+
+test('a +1 then -1 correction leaves no dip in the line', () => {
+  const events = [
+    { gameId: 'g1', playerId: 'p1', playerInitials: 'SG', delta: 1, createdAt: '2026-01-01T00:00:00Z' },
+    { gameId: 'g2', playerId: 'p1', playerInitials: 'SG', delta: 1, createdAt: '2026-01-02T00:00:00Z' },
+    { gameId: 'g2', playerId: 'p1', playerInitials: 'SG', delta: -1, createdAt: '2026-01-02T00:01:00Z' },
+  ];
+  const { series } = buildCumulativeSeries(events);
+  expect(series.map(p => p.SG)).toEqual([1]);
+});
+
+test('a decrease cancels an earlier win in the same game, keeping the total', () => {
+  const events = [
+    { gameId: 'g1', playerId: 'p2', playerInitials: 'NI', delta: 1, createdAt: '2026-10-10T00:00:00Z' },
+    { gameId: 'g1', playerId: 'p2', playerInitials: 'NI', delta: -1, createdAt: '2026-11-04T00:00:00Z' },
+    { gameId: 'g1', playerId: 'p2', playerInitials: 'NI', delta: 1, createdAt: '2026-11-04T00:00:01Z' },
+    { gameId: 'g1', playerId: 'p2', playerInitials: 'NI', delta: 1, createdAt: '2026-11-04T00:00:02Z' },
+  ];
+  const { series } = buildCumulativeSeries(events);
+  const values = series.map(p => p.NI);
+  expect(values).toEqual([1, 2]); // never goes down
+  expect(values.at(-1)).toBe(2);  // same end total as the raw deltas
+});
+
+test('a decrease in a different game does not cancel', () => {
+  const events = [
+    { gameId: 'g1', playerId: 'p1', playerInitials: 'SG', delta: 1, createdAt: '2026-01-01T00:00:00Z' },
+    { gameId: 'g2', playerId: 'p1', playerInitials: 'SG', delta: -1, createdAt: '2026-01-02T00:00:00Z' },
+  ];
+  expect(buildCumulativeSeries(events).series.map(p => p.SG)).toEqual([1, 0]);
+});
