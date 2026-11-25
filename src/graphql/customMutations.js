@@ -8,6 +8,8 @@ export const createPlayer = /* GraphQL */ `
     createPlayer(input: $input) {
       id
       initials
+      core
+      hidden
     }
   }
 `;
@@ -25,6 +27,7 @@ export const createGame = /* GraphQL */ `
     createGame(input: $input) {
       id
       name
+      baselinePlays
     }
   }
 `;
@@ -80,6 +83,8 @@ export const createScoreEvent = /* GraphQL */ `
       delta
       recordedBy
       voided
+      playId
+      occurredAt
       createdAt
     }
   }
@@ -93,6 +98,33 @@ export const updateScoreEvent = /* GraphQL */ `
     updateScoreEvent(input: $input, condition: $condition) {
       id
       voided
+    }
+  }
+`;
+
+// A recorded game. Voided (never deleted) via updatePlay { id, voided: true }.
+const PLAY_FIELDS = `
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided`;
+
+export const createPlay = /* GraphQL */ `
+  mutation CreatePlay($input: CreatePlayInput!) {
+    createPlay(input: $input) {${PLAY_FIELDS}
+    }
+  }
+`;
+
+export const updatePlay = /* GraphQL */ `
+  mutation UpdatePlay($input: UpdatePlayInput!, $condition: ModelPlayConditionInput) {
+    updatePlay(input: $input, condition: $condition) {${PLAY_FIELDS}
     }
   }
 `;

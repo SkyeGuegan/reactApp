@@ -12,8 +12,12 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 // With `editing` and `onIncrement(cell, delta)` set (admins in edit mode), each
 // score cell gets −/+ buttons. − is disabled at scores below 1 (scores never go
 // negative).
+//
+// With `playedCounts` (Map gameId -> games played) a muted Played column is
+// added on the right, set off from the player columns by a divider; the bottom
+// row (then labelled "Totals") shows the overall count.
 function tableComponent(props) {
-  const { games = [], players = [], gameScores = [], loading, editing = false, onIncrement } = props;
+  const { games = [], players = [], gameScores = [], loading, error = false, editing = false, onIncrement, playedCounts } = props;
 
   // (gameId#playerId) -> GameScore cell
   const lookup = new Map(gameScores.map(gs => [`${gs.gameId}#${gs.playerId}`, gs]));
@@ -70,6 +74,7 @@ function tableComponent(props) {
             {scoreCell(game, p, rowScores[i], rowScores[i] >= max)}
           </td>
         ))}
+        {playedCounts && <td className="played-col">{playedCounts.get(game.id) || 0}</td>}
       </tr>
     );
   }
@@ -77,12 +82,15 @@ function tableComponent(props) {
   function totalRow() {
     return (
       <tr className="table-dark">
-        <td>Total Wins</td>
+        <td>{playedCounts ? 'Totals' : 'Total Wins'}</td>
         {players.map((p, i) => (
           <td key={p.id} style={{ ...numCol, fontWeight: isLeader(i) ? 'bold' : 'normal', color: isLeader(i) ? 'gold' : 'white' }}>
             {totals[i]}
           </td>
         ))}
+        {playedCounts && (
+          <td className="played-col">{games.reduce((sum, g) => sum + (playedCounts.get(g.id) || 0), 0)}</td>
+        )}
       </tr>
     );
   }
@@ -92,6 +100,14 @@ function tableComponent(props) {
       <Spinner animation="border" role="status">
         <span className="visually-hidden">Loading...</span>
       </Spinner>
+    );
+  }
+
+  if (error) {
+    return (
+      <p role="alert" style={{ padding: '10px', color: '#a00', margin: 0 }}>
+        Couldn't load the scoreboard. Check your connection and refresh to try again.
+      </p>
     );
   }
 
@@ -116,6 +132,7 @@ function tableComponent(props) {
                 <span>{p.initials}</span>{isLeader(i) ? ' 👑' : ''}
               </th>
             ))}
+            {playedCounts && <th className="played-col" title="Games played with all regulars at the table">Played</th>}
           </tr>
         </thead>
         <tbody>

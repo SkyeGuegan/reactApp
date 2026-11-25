@@ -248,3 +248,30 @@
   color: #6c757d;
   font-size: 0.9rem;
 }
+
+/* Played column on the right: muted, with a divider after the player columns. */
+.board-card .played-col {
+  text-align: center;
+  color: #6c757d;
+  border-left: 2px solid #ced4da;
+}
+.board-card tr.table-dark .played-col {
+  color: #ced4da;
+}
+
+/* Record a game: the line saying whether it will count on the main table. */
+.play-status {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f1f3f5;
+  color: #495057;
+  font-size: 0.9rem;
+}
+.play-status.counts {
+  background: #f1ecdc;
+  color: #59470c;
+}
+/* Keep player headers (initials + crown) on one line. */
+.board-card thead th {
+  white-space: nowrap;
+}

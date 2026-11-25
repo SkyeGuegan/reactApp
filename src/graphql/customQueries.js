@@ -8,6 +8,7 @@ export const listGames = /* GraphQL */ `
       items {
         id
         name
+        baselinePlays
       }
       nextToken
     }
@@ -20,6 +21,8 @@ export const listPlayers = /* GraphQL */ `
       items {
         id
         initials
+        core
+        hidden
       }
       nextToken
     }
@@ -54,7 +57,30 @@ export const listScoreEvents = /* GraphQL */ `
         delta
         recordedBy
         voided
+        playId
+        occurredAt
         createdAt
+      }
+      nextToken
+    }
+  }
+`;
+
+// Recorded games (who played, who won). Public read; small, loaded with the board.
+export const listPlays = /* GraphQL */ `
+  query ListPlays($limit: Int, $nextToken: String) {
+    listPlays(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        gameId
+        gameName
+        playedAt
+        playerIds
+        winnerIds
+        counted
+        test
+        recordedBy
+        voided
       }
       nextToken
     }

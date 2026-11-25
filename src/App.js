@@ -8,6 +8,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import TableComponent from './tableComponent';
 import TrendsChart from './TrendsChart';
 import ManagePanel from './ManagePanel';
+import RecordPlayDialog from './RecordPlayDialog';
+import AllGames from './AllGames';
+import { corePlayers, playedCounts as computePlayedCounts } from './plays';
 import useScoreboard from './useScoreboard';
 import { formatDelta } from './history';
 
@@ -37,9 +40,10 @@ function useIsAdmin(user) {
 
 function Scoreboard() {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
-    const { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId } = useScoreboard(user);
+    const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, lastEvent, lastVoidedId } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
-    const [view, setView] = useState('table'); // 'table' | 'trends'
+    const [view, setView] = useState('table'); // 'table' | 'trends' | 'games'
+    const [showRecord, setShowRecord] = useState(false);
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
     // { cell, label, from, to } while a decrease (− in edit mode) awaits confirmation.
@@ -49,7 +53,8 @@ function Scoreboard() {
     // so a click that changes the leader can't move buttons under the cursor.
     const [editing, setEditing] = useState(false);
     const [frozenOrder, setFrozenOrder] = useState([]);
-    // One notice at a time: { id, variant: 'success' | 'danger', message, undoEvent? }.
+    // One notice at a time: { id, variant: 'success' | 'danger', message, undo? }
+    // where undo is a function run by the notice's Undo button.
     const [notice, setNotice] = useState(null);
     // Pause the notice's auto-hide while the pointer or focus is on it.
     const [noticeHeld, setNoticeHeld] = useState(false);
@@ -59,8 +64,8 @@ function Scoreboard() {
     const isAdmin = isAuthenticated && inAdminGroup;
     const editMode = isAdmin && editing && view === 'table';
 
-    function notify(variant, message, undoEvent = null) {
-      setNotice({ id: Date.now(), variant, message, undoEvent });
+    function notify(variant, message, undo = null) {
+      setNotice({ id: Date.now(), variant, message, undo });
       setNoticeHeld(false);
     }
     const failed = (what, err) => notify('danger', (err && err.userMessage) || `Couldn't ${what}. Check your connection and try again.`);
@@ -78,10 +83,10 @@ function Scoreboard() {
       }
     }
 
-    async function handleAddPlayer(initials) {
+    async function handleAddPlayer(initials, core = false) {
       try {
-        await addPlayer(initials);
-        notify('success', `Added player ${initials}.`);
+        await addPlayer(initials, { core });
+        notify('success', `Added ${core ? 'player' : 'guest'} ${initials}.`);
         return true;
       } catch (err) {
         failed(`add ${initials}`, err);
@@ -109,7 +114,7 @@ function Scoreboard() {
       }
       try {
         const event = await increment(cell, delta);
-        if (event) notify('success', label, event);
+        if (event) notify('success', label, () => undo(event));
       } catch (err) {
         failed(`save ${label}`, err);
       }
@@ -122,6 +127,49 @@ function Scoreboard() {
         notify('success', `Undid ${event.playerInitials} ${formatDelta(event.delta)} in ${event.gameName}.`);
       } catch (err) {
         failed('undo that change', err);
+      }
+    }
+
+    // Guests added from the Record a game dialog. Resolves to the new player.
+    async function handleAddGuest(initials) {
+      try {
+        return await addPlayer(initials, { core: false });
+      } catch (err) {
+        failed(`add guest ${initials}`, err);
+        return null;
+      }
+    }
+
+    // Save a recorded game; the notice says where it landed and offers Undo.
+    async function handleRecordPlay(data) {
+      try {
+        const play = await recordPlay(data);
+        const name = (id) => (data.allPlayers.find(p => p.id === id) || {}).initials || '?';
+        const where = play.test ? ' (test — admins only)' : play.counted ? '' : ' (not on the main table)';
+        notify('success', `Recorded ${play.gameName}: ${play.winnerIds.map(name).join(' & ')} won${where}.`, () => undoPlay(play));
+        return true;
+      } catch (err) {
+        failed('save that game', err);
+        return false;
+      }
+    }
+
+    async function undoPlay(play) {
+      setNotice(null);
+      try {
+        await voidPlay(play);
+        notify('success', `Removed ${play.gameName}.`);
+      } catch (err) {
+        failed('undo that game', err);
+      }
+    }
+
+    async function handleVoidPlay(play) {
+      try {
+        await voidPlay(play);
+        notify('success', `Voided ${play.gameName}.`);
+      } catch (err) {
+        failed(`void ${play.gameName}`, err);
       }
     }
 
@@ -152,13 +200,17 @@ function Scoreboard() {
     const sortedGames = [...games].sort(byName);
     // Order player columns by total wins (descending) so the leader sits leftmost;
     // fall back to initials for ties / players with no scores yet.
+    // Main table columns: the core players only (guests and the test player
+    // live in All games / the roster).
+    const tablePlayers = corePlayers(players);
+    const playedCounts = computePlayedCounts(games, plays);
     const playerTotals = new Map(players.map(p => [p.id, 0]));
     gameScores.forEach(gs => {
       if (playerTotals.has(gs.playerId)) {
         playerTotals.set(gs.playerId, playerTotals.get(gs.playerId) + gs.score);
       }
     });
-    const byWins = [...players].sort((a, b) => {
+    const byWins = [...tablePlayers].sort((a, b) => {
       const diff = playerTotals.get(b.id) - playerTotals.get(a.id);
       return diff !== 0 ? diff : byInitials(a, b);
     });
@@ -174,6 +226,12 @@ function Scoreboard() {
           return ia === ib ? 0 : ia < ib ? -1 : 1;
         })
       : byWins;
+    // Roster order: core players by wins, then guests, then the test player.
+    const rosterPlayers = [
+      ...sortedPlayers,
+      ...players.filter(p => !tablePlayers.includes(p) && !p.hidden).sort(byInitials),
+      ...players.filter(p => p.hidden).sort(byInitials),
+    ];
 
   return (
     <div className="App">
@@ -196,6 +254,7 @@ function Scoreboard() {
         <ButtonGroup size="sm">
           <Button variant={view === 'table' ? 'dark' : 'outline-dark'} onClick={() => setView('table')}>Table</Button>
           <Button variant={view === 'trends' ? 'dark' : 'outline-dark'} onClick={() => setView('trends')}>Trends</Button>
+          <Button variant={view === 'games' ? 'dark' : 'outline-dark'} onClick={() => setView('games')}>All games</Button>
         </ButtonGroup>
       </div>
       <div className="board-card">
@@ -211,6 +270,7 @@ function Scoreboard() {
           )
           : (
             <div className="board-toolbar">
+              <Button size="sm" variant="dark" onClick={() => setShowRecord(true)}>＋ Record a game</Button>
               <Button size="sm" variant="outline-secondary" onClick={toggleEditing}>✎ Edit scores</Button>
             </div>
           )
@@ -221,10 +281,14 @@ function Scoreboard() {
             players={sortedPlayers}
             gameScores={gameScores}
             loading={loading}
+            error={loadError}
             editing={editMode}
             onIncrement={handleIncrement}
+            playedCounts={playedCounts}
           />
-        : <TrendsChart />}
+        : view === 'trends'
+          ? <TrendsChart />
+          : <AllGames plays={plays} players={players} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
       </div>
       </>
       :
@@ -236,7 +300,7 @@ function Scoreboard() {
       ?
       <ManagePanel
         games={sortedGames}
-        players={sortedPlayers}
+        players={rosterPlayers}
         playerTotals={playerTotals}
         onAddGame={handleAddGame}
         onAddPlayer={handleAddPlayer}
@@ -249,6 +313,17 @@ function Scoreboard() {
           ? <p className="viewer-note">You're signed in as {user.username}. Only admins can change scores.</p>
           : null
       }
+
+      {isAdmin && (
+        <RecordPlayDialog
+          show={showRecord}
+          onHide={() => setShowRecord(false)}
+          games={games}
+          players={players}
+          onSave={handleRecordPlay}
+          onAddGuest={handleAddGuest}
+        />
+      )}
 
       <Modal show={!!pendingDecrease} onHide={() => setPendingDecrease(null)} centered>
         <Modal.Header closeButton>
@@ -310,8 +385,8 @@ function Scoreboard() {
           >
             <Toast.Body className="d-flex align-items-center gap-3 text-white" role={notice.variant === 'danger' ? 'alert' : 'status'}>
               <span className="flex-grow-1">{notice.message}</span>
-              {notice.undoEvent && (
-                <Button size="sm" variant="outline-light" onClick={() => undo(notice.undoEvent)}>Undo</Button>
+              {notice.undo && (
+                <Button size="sm" variant="outline-light" onClick={notice.undo}>Undo</Button>
               )}
               <button type="button" className="btn-close btn-close-white" aria-label="Dismiss" onClick={() => setNotice(null)} />
             </Toast.Body>

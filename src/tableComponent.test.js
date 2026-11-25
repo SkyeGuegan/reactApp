@@ -63,3 +63,20 @@ test('edit mode disables − when a score is 0', () => {
   expect(screen.getByRole('button', { name: 'Remove a win from SG in Catan' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Remove a win from NI in Catan' })).toBeEnabled();
 });
+
+test('shows a Played column on the right, with the total in a Totals row', () => {
+  const playedCounts = new Map([['g1', 7], ['g2', 4]]);
+  render(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} playedCounts={playedCounts} />);
+  const headers = screen.getAllByRole('columnheader').map(h => h.textContent.trim());
+  expect(headers[0]).toBe('Game');
+  expect(headers.at(-1)).toBe('Played');
+  expect(screen.getByText('7')).toBeInTheDocument();
+  expect(screen.getByText('11')).toBeInTheDocument();
+  expect(screen.getByText('Totals')).toBeInTheDocument();
+});
+
+test('a failed load says so instead of claiming the board is empty', () => {
+  render(<TableComponent games={[]} players={[]} gameScores={[]} loading={false} error />);
+  expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the scoreboard");
+  expect(screen.queryByText(/scoreboard is empty/)).toBeNull();
+});

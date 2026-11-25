@@ -82,3 +82,12 @@ test('a decrease in a different game does not cancel', () => {
   ];
   expect(buildCumulativeSeries(events).series.map(p => p.SG)).toEqual([1, 0]);
 });
+
+test('a recorded game is placed at its played date, not when it was entered', () => {
+  const events = [
+    { playerInitials: 'SG', delta: 1, createdAt: '2026-03-01T00:00:00Z' },
+    { playerInitials: 'NI', delta: 1, createdAt: '2026-03-05T00:00:00Z', occurredAt: '2026-02-01T00:00:00Z' },
+  ];
+  const { series } = buildCumulativeSeries(events);
+  expect(series.map(p => p.time)).toEqual(['2026-02-01T00:00:00Z', '2026-03-01T00:00:00Z']);
+});

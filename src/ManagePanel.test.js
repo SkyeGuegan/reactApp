@@ -5,7 +5,7 @@ import ManagePanel from './ManagePanel';
 // ScoreHistory (History tab) talks to Amplify; keep tests offline.
 jest.mock('./api', () => ({ fetchAllPages: jest.fn(() => Promise.resolve([])) }));
 
-const players = [{ id: 'p1', initials: 'SG' }, { id: 'p2', initials: 'NI' }];
+const players = [{ id: 'p1', initials: 'SG', core: true }, { id: 'p2', initials: 'NI', core: true }];
 const games = [{ id: 'g1', name: 'Catan' }];
 const playerTotals = new Map([['p1', 5], ['p2', 1]]);
 
@@ -54,4 +54,22 @@ test('roster lists players with wins and deletes via the menu', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Actions for Catan' }));
   fireEvent.click(await screen.findByText('Delete game…'));
   expect(props.onRequestDelete).toHaveBeenCalledWith('game', games[0]);
+});
+
+test('new players are guests unless "Regular player" is ticked', async () => {
+  const props = setup();
+  fireEvent.change(screen.getByLabelText('New player'), { target: { value: 'ab' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[1]);
+  await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('AB', false));
+  fireEvent.change(screen.getByLabelText('New player'), { target: { value: 'cd' } });
+  fireEvent.click(screen.getByLabelText(/Regular player/));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[1]);
+  await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('CD', true));
+});
+
+test('roster labels guests and the test player', () => {
+  setup({ players: [...players, { id: 'g', initials: 'AB' }, { id: 't', initials: 'TEST', hidden: true }] });
+  fireEvent.click(screen.getByRole('tab', { name: 'Roster' }));
+  expect(screen.getByText('guest')).toBeInTheDocument();
+  expect(screen.getByText('test')).toBeInTheDocument();
 });

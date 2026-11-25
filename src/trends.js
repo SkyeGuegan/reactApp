@@ -16,9 +16,14 @@
 // Summing all non-voided deltas reconciles to the current GameScore totals
 // (migration baseline rows + every click), so the chart's end values match the
 // table's Total Wins.
+// When a change happened: a recorded game's played date if set, else when it
+// was entered.
+const whenOf = (e) => e.occurredAt || e.createdAt;
+
 export function buildCumulativeSeries(events) {
   const active = netCorrections(events
     .filter(e => !e.voided && e.playerInitials)
+    .map(e => ({ ...e, createdAt: whenOf(e) }))
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0)));
 
   const players = [...new Set(active.map(e => e.playerInitials))].sort();

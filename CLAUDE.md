@@ -26,6 +26,8 @@ Use `craco`, never plain `react-scripts`: `craco.config.js` disables webpack 5's
 - New machine: `npm install`, then `amplify pull` to connect to the existing backend. **Never `amplify init`** — it creates a new backend.
 - Backend changes (schema, auth, resolvers) are edited under `amplify/backend/` and deployed with `amplify push`, which changes the live AWS environment — only run it when the user asks.
 - `src/aws-exports.js` and `src/amplifyconfiguration.json` are generated and gitignored.
+- `ENOENT … amplify-codegen-temp` errors after a successful `amplify push` are harmless (codegen for DataStore models, which this app doesn't use).
+- If a push fails with `S3 object does not exist … amplify-appsync-files/<hash>/stacks/<Model>.json`, check `amplify/.config/local-env-info.json`: a `projectPath` from another machine makes the CLI rebuild the root stack from stale cloud state, pointing at an old deployment folder. Set it to this checkout's path and push again.
 
 ## Architecture
 
@@ -36,6 +38,9 @@ Use `craco`, never plain `react-scripts`: `craco.config.js` disables webpack 5's
 - `incrementScore(id, delta)` is a custom AppSync mutation backed by VTL resolvers in `amplify/backend/api/reactapp/resolvers/` that does an atomic DynamoDB `ADD`, avoiding read-modify-write races.
 
 **Auth:** the API's default mode is API key. Every model allows public `read` via `apiKey` and full access to the Cognito `admin` group; `incrementScore` is restricted to `admin` via `@aws_cognito_user_pools`. Client reads pass `authMode: 'apiKey'`, writes pass `authMode: 'userPool'`. The backend is the real security boundary; the UI's `isAdmin` (a `cognito:groups` check from `fetchAuthSession()` in `src/App.js`) only controls what's shown. The Cognito identity pool is intentionally stripped from the runtime config in `src/api.js` (unauthenticated access is disabled and would otherwise cause 400s).
+
+- `Player.core` marks the regulars shown on the main table; `Player.hidden` marks the test player (TEST), never shown publicly.
+- `Play` records one game: who played, who won. It `counted` on the main table only if every core player played and no hidden player did; then each core winner gets an equal share of 1 win via `incrementScore` + ScoreEvents with `playId` (and `occurredAt` = played date, which Trends uses). Non-counted plays still feed the All games view. Played column = `Game.baselinePlays` (pre-Play estimate) + counted plays. Rules live in `src/plays.js`.
 
 **Client layers:**
 - `src/api.js` — configures Amplify once and exports the shared `client` plus `fetchAllPages` (paginates list queries with the API key; rows can exceed the 100-item default).

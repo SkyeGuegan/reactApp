@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col } from 'react-bootstrap';
+import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col, Badge } from 'react-bootstrap';
 import ScoreHistory from './ScoreHistory';
 
 // Admin "Manage" card below the board, in three tabs:
@@ -7,7 +7,7 @@ import ScoreHistory from './ScoreHistory';
 //   Roster  — games and players, with Delete tucked behind a ⋯ menu.
 //   History — the ScoreEvent ledger with Void (loads when first opened).
 //
-// Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials)
+// Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials, core)
 // resolve true on success (so the input clears), onRequestDelete(kind, item)
 // opens App's confirmation modal.
 export default function ManagePanel({
@@ -17,6 +17,7 @@ export default function ManagePanel({
 }) {
   const [newGame, setNewGame] = useState('');
   const [newPlayer, setNewPlayer] = useState('');
+  const [newPlayerCore, setNewPlayerCore] = useState(false);
   const [gameError, setGameError] = useState('');
   const [playerError, setPlayerError] = useState('');
 
@@ -39,13 +40,14 @@ export default function ManagePanel({
       setPlayerError(`${initials} is already a player.`);
       return;
     }
-    if (await onAddPlayer(initials)) setNewPlayer('');
+    if (await onAddPlayer(initials, newPlayerCore)) { setNewPlayer(''); setNewPlayerCore(false); }
   }
 
-  const rosterRow = (kind, item, label, detail) => (
+  const rosterRow = (kind, item, label, detail, badge) => (
     <ListGroup.Item key={item.id} className="d-flex align-items-center justify-content-between py-2">
       <span>
         {label}
+        {badge}
         {detail && <span className="text-muted small ms-2">{detail}</span>}
       </span>
       <Dropdown align="end">
@@ -105,7 +107,14 @@ export default function ManagePanel({
                   </div>
                   {playerError
                     ? <div className="text-danger small mt-1" role="alert">{playerError}</div>
-                    : <Form.Text id="new-player-help">Up to 4 letters. Starts at 0 in every game.</Form.Text>}
+                    : <Form.Text id="new-player-help">Up to 4 letters. New players are guests unless ticked below.</Form.Text>}
+                  <Form.Check
+                    className="mt-2 small"
+                    id="new-player-core"
+                    label="Regular player (gets a column on the main table)"
+                    checked={newPlayerCore}
+                    onChange={e => setNewPlayerCore(e.target.checked)}
+                  />
                 </Form.Group>
               </Form>
             </Col>
@@ -121,6 +130,8 @@ export default function ManagePanel({
                 : (
                   <ListGroup>
                     {players.map(p => {
+                      if (p.hidden) return rosterRow('player', p, p.initials, 'hidden from everyone but admins', <Badge bg="secondary" className="ms-2">test</Badge>);
+                      if (!p.core) return rosterRow('player', p, p.initials, null, <Badge bg="light" text="dark" className="ms-2">guest</Badge>);
                       const wins = playerTotals.get(p.id) || 0;
                       return rosterRow('player', p, p.initials, `${wins} ${wins === 1 ? 'win' : 'wins'}`);
                     })}

@@ -2,6 +2,9 @@
 # (public scoreboard), only the "admin" Cognito group can write.
 
 # A roster entry. A player is just initials; their scores live in GameScore.
+# core: one of the regulars shown on the main table (a game counts there only
+#   when every core player played). Non-core players are guests.
+# hidden: a test player. Never shown publicly; plays involving it never count.
 type Player
   @model
   @auth(
@@ -12,9 +15,14 @@ type Player
   ) {
   id: ID!
   initials: String!
+  core: Boolean
+  hidden: Boolean
 }
 
 # A game (one row in the scoreboard).
+# baselinePlays: plays before Play records existed, estimated from the game's
+#   win total at the time (each three-player game produced exactly one win).
+#   The Played count is baselinePlays + this game's counted Plays.
 type Game
   @model
   @auth(
@@ -25,6 +33,7 @@ type Game
   ) {
   id: ID!
   name: String!
+  baselinePlays: Float
 }
 
 # One player's score in one game (a single cell of the board). Adding a player
@@ -74,6 +83,37 @@ type ScoreEvent
   # Soft delete: set true to exclude a bogus event from graphs without hard
   # deleting it (the row, and its audit trail, are preserved). Unset/false means
   # active. Never hard-delete events — void them.
+  voided: Boolean
+  # The Play this win came from (unset for manual +/- corrections, backfill and
+  # migration rows).
+  playId: ID
+  # When the game was actually played, if different from createdAt (a Play
+  # recorded after the fact). Trends uses occurredAt ?? createdAt.
+  occurredAt: AWSDateTime
+}
+
+# One recorded game: who played and who won. A play "counts" on the main table
+# only when every core player took part and no hidden (test) player did; then
+# each core winner gets an equal share of 1 win (ScoreEvents with playId).
+# Plays that don't count are still kept for the All games view and stats.
+# Void, never delete (voiding a counted play also voids its ScoreEvents).
+type Play
+  @model
+  @auth(
+    rules: [
+      { allow: public, provider: apiKey, operations: [read] }
+      { allow: groups, groups: ["admin"] }
+    ]
+  ) {
+  id: ID!
+  gameId: ID!
+  gameName: String
+  playedAt: AWSDateTime!
+  playerIds: [ID!]!
+  winnerIds: [ID!]!
+  counted: Boolean
+  test: Boolean
+  recordedBy: String
   voided: Boolean
 }
 

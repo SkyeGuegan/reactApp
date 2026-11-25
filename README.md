@@ -8,9 +8,12 @@ A win tally for our game nights: who has won which game, overall totals, and how
 
 ## Features
 
-- **Table**: wins per game and player, with a Total Wins row. The overall leader gets a crown and gold total; the best score in each game is bold. Scores can include half points (from shared wins).
+- **Table**: wins per game and player, with a Totals row. The overall leader gets a crown and gold total; the best score in each game is bold. Scores can include half points (from shared wins).
 - **Trends**: each player's cumulative wins over time. Corrections (a win added then removed) don't show as dips.
+- **Played**: a column on the right counting how often each game has been played with all three regulars; the Totals row has the overall count.
+- **All games**: every recorded game, including ones with guests or where someone was missing, plus everyone's played / wins / win rate.
 - **Admin editing** (signed-in members of the Cognito `admin` group only):
+  - **Record a game**: pick the game, date, who played and who won (shared wins split evenly). A game counts on the main table only when Skye, Nick and Montana all played. Guests are saved as players but never get a table column. A hidden TEST player lets you try things on the live site without affecting anything.
   - **Edit scores** turns the table into −/+ steppers. Column order stays put while you edit; − asks for confirmation; every change shows a notice with **Undo**.
   - **Manage** card: add games and players, delete them from the roster, and browse the full score history, where any change can be voided.
   - Scores can never go below 0 (enforced by the server, not just the UI).
@@ -32,6 +35,7 @@ Defined in `amplify/backend/api/reactapp/schema.graphql`:
 | `Player` | A player's initials |
 | `Game` | A game on the board |
 | `GameScore` | One player's current score in one game (a table cell) |
+| `Play` | One recorded game: who played, who won, and whether it counted on the main table |
 | `ScoreEvent` | Append-only history: one row per score change. Rows are voided, never deleted. Powers Trends and the admin history. |
 
 Score changes go through a custom `incrementScore` mutation that updates the cell atomically on the server and refuses to go below 0.
@@ -60,6 +64,5 @@ Never run `amplify init`: it creates a brand-new backend. Backend changes are de
 ## Ideas
 
 - Links to each game's website
-- A games-played count per game
 - MFA for admin sign-in
 - Move from Create React App to Vite

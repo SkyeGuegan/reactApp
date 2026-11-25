@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { client, fetchAllPages } from './api';
-import { listGames, listPlayers, listGameScores } from './graphql/customQueries';
+import { listGames, listPlayers, listGameScores, listPlays, listScoreEvents } from './graphql/customQueries';
 import {
   createGame as createGameMutation,
   deleteGame as deleteGameMutation,
@@ -11,8 +11,11 @@ import {
   incrementScore as incrementScoreMutation,
   createScoreEvent as createScoreEventMutation,
   updateScoreEvent as updateScoreEventMutation,
+  createPlay as createPlayMutation,
+  updatePlay as updatePlayMutation,
 } from './graphql/customMutations';
 import { cellForEvent, canApplyDelta } from './history';
+import { corePlayers, classifyPlay, winShares } from './plays';
 
 // Owns the scoreboard's board data (games, players, GameScore cells) and the
 // admin mutations that change them, so App.js stays a view layer. `user` is the
@@ -22,7 +25,9 @@ export default function useScoreboard(user) {
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
   const [gameScores, setGameScores] = useState([]);
+  const [plays, setPlays] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   // The most recent ScoreEvent this session logged, so an open history panel
   // can show it without refetching the whole ledger.
   const [lastEvent, setLastEvent] = useState(null);
@@ -34,17 +39,20 @@ export default function useScoreboard(user) {
     let active = true;
     (async () => {
       try {
-        const [g, p, gs] = await Promise.all([
+        const [g, p, gs, pl] = await Promise.all([
           fetchAllPages(listGames, 'listGames'),
           fetchAllPages(listPlayers, 'listPlayers'),
           fetchAllPages(listGameScores, 'listGameScores'),
+          fetchAllPages(listPlays, 'listPlays'),
         ]);
         if (!active) return;
         setGames(g);
         setPlayers(p);
         setGameScores(gs);
+        setPlays(pl);
       } catch (err) {
         console.error('Failed to load scoreboard', err);
+        if (active) setLoadError(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -52,29 +60,32 @@ export default function useScoreboard(user) {
     return () => { active = false; };
   }, []);
 
-  // Add a player by initials and zero-fill them across every existing game.
-  async function addPlayer(initials) {
+  // Add a player by initials. Core players (shown on the main table) are
+  // zero-filled across every existing game; guests get no table cells.
+  // Returns the new player.
+  async function addPlayer(initials, { core = false } = {}) {
     try {
-      const res = await client.graphql({ query: createPlayerMutation, variables: { input: { initials } }, authMode: 'userPool' });
+      const res = await client.graphql({ query: createPlayerMutation, variables: { input: { initials, core } }, authMode: 'userPool' });
       const player = res.data.createPlayer;
-      const created = await Promise.all(games.map(game =>
+      const created = !core ? [] : await Promise.all(games.map(game =>
         client.graphql({ query: createGameScoreMutation, variables: { input: { gameId: game.id, playerId: player.id, score: 0 } }, authMode: 'userPool' })
           .then(r => r.data.createGameScore)
       ));
-      setPlayers([...players, player]);
-      setGameScores([...gameScores, ...created]);
+      setPlayers(prev => [...prev, player]);
+      setGameScores(prev => [...prev, ...created]);
+      return player;
     } catch (err) {
       console.error('Failed to add player', err);
       throw err;
     }
   }
 
-  // Add a game and start every existing player at 0 in it.
+  // Add a game and start every core player at 0 in it.
   async function addGame(name) {
     try {
-      const res = await client.graphql({ query: createGameMutation, variables: { input: { name } }, authMode: 'userPool' });
+      const res = await client.graphql({ query: createGameMutation, variables: { input: { name, baselinePlays: 0 } }, authMode: 'userPool' });
       const game = res.data.createGame;
-      const created = await Promise.all(players.map(player =>
+      const created = await Promise.all(corePlayers(players).map(player =>
         client.graphql({ query: createGameScoreMutation, variables: { input: { gameId: game.id, playerId: player.id, score: 0 } }, authMode: 'userPool' })
           .then(r => r.data.createGameScore)
       ));
@@ -175,9 +186,11 @@ export default function useScoreboard(user) {
   // twice — then the cell is adjusted by -delta directly via incrementScore
   // (not `increment`, which would log a new event). If the adjustment fails the
   // void is undone. Throws on failure so the caller can show a message.
-  async function voidEvent(event) {
+  // `checkFloor: false` skips the client-side below-0 check (the resolver still
+  // enforces it) for callers whose view of the score may be stale.
+  async function voidEvent(event, { checkFloor = true } = {}) {
     const target = cellForEvent(event, gameScores);
-    if (target && !canApplyDelta(target.score, -event.delta)) {
+    if (checkFloor && target && !canApplyDelta(target.score, -event.delta)) {
       const err = new Error('Voiding this would make the score negative.');
       err.userMessage = `Can't void this: ${event.playerInitials || 'the player'}'s score in ${event.gameName || 'this game'} would drop below 0.`;
       throw err;
@@ -207,5 +220,64 @@ export default function useScoreboard(user) {
     }
   }
 
-  return { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId };
+  // Record a game that was played. Always saves a Play; if it counts (all core
+  // players, no test player), each core winner's cell gets their share of the
+  // win, logged as ScoreEvents linked by playId and dated playedAt.
+  // Returns the saved play. Throws if the Play itself couldn't be saved; a
+  // failure while applying wins is rethrown after voiding what was applied.
+  async function recordPlay({ gameId, playedAt, playerIds, winnerIds, allPlayers = players }) {
+    const game = games.find(g => g.id === gameId);
+    const { counted, test } = classifyPlay(playerIds, allPlayers);
+    const res = await client.graphql({
+      query: createPlayMutation,
+      variables: { input: { gameId, gameName: game ? game.name : null, playedAt, playerIds, winnerIds, counted, test, recordedBy: user ? user.username : null } },
+      authMode: 'userPool',
+    });
+    const play = res.data.createPlay;
+    setPlays(prev => [...prev, play]);
+    if (!counted) return play;
+
+    const applied = [];
+    try {
+      for (const { playerId, share } of winShares(winnerIds, allPlayers)) {
+        const cell = gameScores.find(gs => gs.gameId === gameId && gs.playerId === playerId);
+        if (!cell) continue;
+        const inc = await client.graphql({ query: incrementScoreMutation, variables: { id: cell.id, delta: share }, authMode: 'userPool' });
+        const updated = inc.data.incrementScore;
+        setGameScores(prev => prev.map(gs => (gs.id === updated.id ? { ...gs, score: updated.score } : gs)));
+        const player = allPlayers.find(p => p.id === playerId);
+        const ev = await client.graphql({
+          query: createScoreEventMutation,
+          variables: { input: {
+            gameId, playerId, delta: share, playId: play.id, occurredAt: playedAt,
+            playerInitials: player ? player.initials : null, gameName: game ? game.name : null,
+            recordedBy: user ? user.username : null,
+          } },
+          authMode: 'userPool',
+        });
+        applied.push(ev.data.createScoreEvent);
+        setLastEvent(ev.data.createScoreEvent);
+      }
+    } catch (err) {
+      console.error('Failed to apply wins for play', err);
+      await voidPlay(play, applied).catch(e => console.error('Failed to roll back play', e));
+      throw err;
+    }
+    return play;
+  }
+
+  // Void a play: void its win events (each reverses its score) then the play.
+  // `knownEvents` skips refetching the ledger when the caller has them.
+  async function voidPlay(play, knownEvents = null) {
+    const events = knownEvents || (await fetchAllPages(listScoreEvents, 'listScoreEvents')).filter(e => e.playId === play.id && !e.voided);
+    for (const ev of events) await voidEvent(ev, { checkFloor: false });
+    await client.graphql({
+      query: updatePlayMutation,
+      variables: { input: { id: play.id, voided: true }, condition: { not: { voided: { eq: true } } } },
+      authMode: 'userPool',
+    });
+    setPlays(prev => prev.map(p => (p.id === play.id ? { ...p, voided: true } : p)));
+  }
+
+  return { games, players, gameScores, plays, loading, loadError, recordPlay, voidPlay, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId };
 }
