@@ -14,6 +14,8 @@ import { corePlayers, playedCounts as computePlayedCounts, gamesWonByGuests } fr
 import ThemeMenu from './ThemeMenu';
 import { useTheme } from './theme';
 import GamePage from './GamePage';
+import GamePicker from './GamePicker';
+import ViewIcon from './ViewIcon';
 import ArtworkDialog from './ArtworkDialog';
 import { useRoute, gameSlug } from './route';
 import useScoreboard from './useScoreboard';
@@ -68,7 +70,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
     const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, setGameArt, lastEvent, lastVoidedId } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
-    const [view, setView] = useState('table'); // 'table' | 'trends' | 'games'
+    const [view, setView] = useState('table'); // 'table' | 'trends' | 'games' | 'pick'
     const [showRecord, setShowRecord] = useState(false);
     const [recordGameId, setRecordGameId] = useState(''); // game preselected in Record a game
     const [artGame, setArtGame] = useState(null); // game page's Set artwork dialog
@@ -328,9 +330,10 @@ function Scoreboard({ themeMode, onThemeChange }) {
       <>
       <div className="board-controls">
         <ButtonGroup size="sm">
-          <Button variant={view === 'table' ? 'dark' : 'outline-dark'} onClick={() => setView('table')}>Table</Button>
-          <Button variant={view === 'trends' ? 'dark' : 'outline-dark'} onClick={() => setView('trends')}>Trends</Button>
-          <Button variant={view === 'games' ? 'dark' : 'outline-dark'} onClick={() => setView('games')}>All games</Button>
+          <Button variant={view === 'table' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('table')}><ViewIcon name="table" />Table</Button>
+          <Button variant={view === 'trends' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('trends')}><ViewIcon name="trends" />Trends</Button>
+          <Button variant={view === 'games' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('games')}><ViewIcon name="games" />All games</Button>
+          <Button variant={view === 'pick' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('pick')}><ViewIcon name="pick" />Pick a game</Button>
         </ButtonGroup>
       </div>
       <div className="board-card">
@@ -365,7 +368,15 @@ function Scoreboard({ themeMode, onThemeChange }) {
           />
         : view === 'trends'
           ? <TrendsChart exactDates={isAdmin} />
-          : <AllGames plays={plays} players={players} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
+          : view === 'pick'
+            ? <GamePicker
+                games={games}
+                plays={plays}
+                isAdmin={isAdmin}
+                onRecord={(gameId) => { setRecordGameId(gameId); setShowRecord(true); }}
+                onAddGame={handleAddGame}
+              />
+            : <AllGames plays={plays} players={players} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
       </div>
       </>
       )}

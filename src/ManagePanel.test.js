@@ -73,3 +73,9 @@ test('roster labels guests and the test player', () => {
   expect(screen.getByText('guest')).toBeInTheDocument();
   expect(screen.getByText('test')).toBeInTheDocument();
 });
+
+test('typing a new game name offers a BoardGameGeek search link', () => {
+  setup();
+  fireEvent.change(screen.getByLabelText('New game'), { target: { value: 'Wingspan' } });
+  expect(screen.getByRole('link', { name: /Find “Wingspan” on BoardGameGeek/ })).toHaveAttribute('href', expect.stringContaining('q=Wingspan'));
+});

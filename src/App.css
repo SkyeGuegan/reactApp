@@ -496,3 +496,87 @@
   text-align: left;
   padding: 6px 10px 0;
 }
+
+/* Pick a game: wheel on the left, the pool of games on the right (stacked on phones). */
+.picker { padding: 12px 8px; }
+.picker-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.wheel-wrap {
+  position: relative;
+  width: min(360px, 100%);
+  margin: 0 auto;
+}
+.wheel { width: 100%; height: auto; display: block; }
+.wheel-pointer {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
+  border-top: 24px solid var(--bs-body-color);
+  z-index: 2;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+.picker-result {
+  min-height: 96px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+}
+.picker-result-art { width: 84px; height: 84px; object-fit: contain; border-radius: 6px; }
+.picker-result-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.picker-result-name { font-size: 1.4rem; font-weight: 600; }
+.picker-pool {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  margin: 0;
+  opacity: 0.55;
+}
+.picker-item:last-child { border-bottom: none; }
+.picker-item.on { opacity: 1; }
+.picker-item img, .picker-noart { width: 28px; height: 28px; object-fit: contain; flex: none; border-radius: 3px; }
+.picker-noart { background: var(--soft-bg); display: inline-block; }
+@media (max-width: 700px) {
+  .picker-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .wheel-wrap { width: min(300px, 100%); }
+  .picker-pool { max-height: 260px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wheel { transition: none !important; }
+}
+
+/* View switch: Lucide icon + label on each option, a little roomier than
+   Bootstrap's small buttons so the icons don't feel cramped. (Scoped under
+   .board-controls to outrank Bootstrap's .btn rules, which load later.) */
+.board-controls .view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+}
+.view-icon { flex: none; opacity: 0.85; }
+.view-btn.btn-dark .view-icon,
+.view-btn.active .view-icon { opacity: 1; }
+/* Narrow phones: keep icons and labels, tighten the padding so all four fit. */
+@media (max-width: 400px) {
+  .board-controls .view-btn { gap: 5px; padding: 5px 7px; }
+  .view-icon { width: 13px; height: 13px; }
+}

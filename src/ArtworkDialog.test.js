@@ -7,3 +7,8 @@ test('parseBggId reads BGG links and bare numbers', () => {
   expect(parseBggId('https://example.com/catan')).toBeNull();
   expect(parseBggId('')).toBeNull();
 });
+
+test('bggSearchUrl searches BoardGameGeek for the game name', () => {
+  const { bggSearchUrl } = require('./ArtworkDialog');
+  expect(bggSearchUrl(' Sushi Go! ')).toBe('https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=Sushi%20Go!');
+});

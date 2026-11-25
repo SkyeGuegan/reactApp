@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col, Badge } from 'react-bootstrap';
 import ScoreHistory from './ScoreHistory';
-import ArtworkDialog from './ArtworkDialog';
+import ArtworkDialog, { bggSearchUrl } from './ArtworkDialog';
 
 // Admin "Manage" card below the board, in three tabs:
 //   Add     — labelled forms for a new game / player (validated here).
@@ -93,6 +93,12 @@ export default function ManagePanel({
                   {gameError
                     ? <div className="text-danger small mt-1" role="alert">{gameError}</div>
                     : <Form.Text id="new-game-help">Every player starts at 0 in it.</Form.Text>}
+                  {newGame.trim() && !gameError && (
+                    <div className="small mt-1">
+                      <a href={bggSearchUrl(newGame)} target="_blank" rel="noopener noreferrer">Find “{newGame.trim()}” on BoardGameGeek ↗</a>
+                      <span className="text-muted"> to check the name and get its box art (add it under Roster → Set artwork).</span>
+                    </div>
+                  )}
                 </Form.Group>
               </Form>
             </Col>

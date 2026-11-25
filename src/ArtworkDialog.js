@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Button } from 'react-bootstrap';
 
+// BoardGameGeek search results for a game name (opens in a new tab).
+export const bggSearchUrl = (name) =>
+  `https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=${encodeURIComponent((name || '').trim())}`;
+
 // Pull a BoardGameGeek id out of a pasted game link ("…/boardgame/13/catan")
 // or a bare number. Returns null if there isn't one.
 export function parseBggId(text) {
@@ -45,6 +49,14 @@ export default function ArtworkDialog({ game, onHide, onSave }) {
         <Modal.Title>Artwork for {game ? game.name : ''}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {game && (
+          <p className="small mb-3">
+            <a href={bggSearchUrl(game.name)} target="_blank" rel="noopener noreferrer" className="fw-semibold">
+              Find {game.name} on BoardGameGeek ↗
+            </a>
+            <span className="text-muted"> — open the right game, copy its page address and box art image address, and paste them below.</span>
+          </p>
+        )}
         <Form.Group controlId="art-bgg" className="mb-3">
           <Form.Label className="fw-semibold">BoardGameGeek page</Form.Label>
           <Form.Control value={bgg} onChange={e => setBgg(e.target.value)} placeholder="https://boardgamegeek.com/boardgame/13/catan" isInvalid={!!bggError} />
