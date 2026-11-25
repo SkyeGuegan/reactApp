@@ -8,14 +8,19 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 // Renders a dynamic scoreboard: one column per player (from props.players),
 // one row per game (props.games), with cell values joined from
 // props.gameScores. Players and games are expected pre-sorted by the caller.
+//
+// With `editing` and `onIncrement(cell, delta)` set (admins in edit mode), each
+// score cell gets −/+ buttons. − is disabled at scores below 1 (scores never go
+// negative).
 function tableComponent(props) {
-  const { games = [], players = [], gameScores = [], loading } = props;
+  const { games = [], players = [], gameScores = [], loading, editing = false, onIncrement } = props;
 
-  // (gameId#playerId) -> score
-  const lookup = new Map(gameScores.map(gs => [`${gs.gameId}#${gs.playerId}`, gs.score]));
+  // (gameId#playerId) -> GameScore cell
+  const lookup = new Map(gameScores.map(gs => [`${gs.gameId}#${gs.playerId}`, gs]));
+  const cellFor = (gameId, playerId) => lookup.get(`${gameId}#${playerId}`);
   const scoreFor = (gameId, playerId) => {
-    const v = lookup.get(`${gameId}#${playerId}`);
-    return v === undefined ? 0 : v;
+    const cell = cellFor(gameId, playerId);
+    return cell === undefined ? 0 : cell.score;
   };
 
   // Per-player grand totals, computed once: drives the totals row plus the
@@ -26,6 +31,34 @@ function tableComponent(props) {
   const isLeader = (i) => maxTotal > 0 && totals[i] === maxTotal;
   const numCol = { textAlign: 'center' };
 
+  function scoreCell(game, player, score, bold) {
+    const cell = cellFor(game.id, player.id);
+    const value = <span style={{ fontWeight: bold ? 'bold' : 'normal' }}>{score}</span>;
+    if (!editing || !cell || !onIncrement) return value;
+    return (
+      <div className="score-stepper">
+        <button
+          type="button"
+          className="score-btn"
+          disabled={cell.score < 1}
+          aria-label={`Remove a win from ${player.initials} in ${game.name}`}
+          onClick={() => onIncrement(cell, -1)}
+        >
+          −
+        </button>
+        <span className="score-value">{value}</span>
+        <button
+          type="button"
+          className="score-btn"
+          aria-label={`Add a win for ${player.initials} in ${game.name}`}
+          onClick={() => onIncrement(cell, 1)}
+        >
+          +
+        </button>
+      </div>
+    );
+  }
+
   function gameRow(game) {
     const rowScores = players.map(p => scoreFor(game.id, p.id));
     const max = rowScores.length ? Math.max(...rowScores) : 0;
@@ -33,11 +66,8 @@ function tableComponent(props) {
       <tr key={game.id}>
         <td>{game.name}</td>
         {players.map((p, i) => (
-          <td
-            key={p.id}
-            style={{ ...numCol, fontWeight: rowScores[i] >= max ? 'bold' : 'normal' }}
-          >
-            {rowScores[i]}
+          <td key={p.id} style={numCol}>
+            {scoreCell(game, p, rowScores[i], rowScores[i] >= max)}
           </td>
         ))}
       </tr>
@@ -77,7 +107,7 @@ function tableComponent(props) {
 
   return (
     <div style={{ padding: '10px' }}>
-      <Table striped bordered hover responsive className="align-middle mb-0">
+      <Table striped bordered hover={!editing} responsive className={`align-middle mb-0${editing ? ' board-editing' : ''}`}>
         <thead>
           <tr>
             <th>Game</th>

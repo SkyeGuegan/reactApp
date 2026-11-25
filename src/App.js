@@ -3,15 +3,13 @@ import './App.css';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import '@aws-amplify/ui-react/styles.css';
-import { Form, InputGroup, Button, ButtonGroup, Badge, Modal } from 'react-bootstrap';
+import { Form, InputGroup, Button, ButtonGroup, Badge, Modal, Toast, ToastContainer } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import TableComponent from './tableComponent';
 import TrendsChart from './TrendsChart';
 import ScoreHistory from './ScoreHistory';
 import useScoreboard from './useScoreboard';
-
-// Key for looking up the GameScore cell at (game, player).
-const scoreKey = (gameId, playerId) => `${gameId}#${playerId}`;
+import { formatDelta } from './history';
 
 const byName = (a, b) => a.name.toUpperCase().localeCompare(b.name.toUpperCase());
 const byInitials = (a, b) => a.initials.toUpperCase().localeCompare(b.initials.toUpperCase());
@@ -39,7 +37,7 @@ function useIsAdmin(user) {
 
 function Scoreboard() {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
-    const { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent } = useScoreboard(user);
+    const { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
     const [view, setView] = useState('table'); // 'table' | 'trends'
     const [newGame, setNewGame] = useState('');
@@ -48,10 +46,23 @@ function Scoreboard() {
     const [playerError, setPlayerError] = useState('');
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
+    // Admin edit mode: −/+ in the table cells. While editing, player columns
+    // keep the order they had when editing started (frozenOrder: player ids),
+    // so a click that changes the leader can't move buttons under the cursor.
+    const [editing, setEditing] = useState(false);
+    const [frozenOrder, setFrozenOrder] = useState([]);
+    // One notice at a time: { id, variant: 'success' | 'danger', message, undoEvent? }.
+    const [notice, setNotice] = useState(null);
 
     const isAuthenticated = authStatus === 'authenticated' && user;
     const inAdminGroup = useIsAdmin(isAuthenticated ? user : null);
     const isAdmin = isAuthenticated && inAdminGroup;
+    const editMode = isAdmin && editing && view === 'table';
+
+    function notify(variant, message, undoEvent = null) {
+      setNotice({ id: Date.now(), variant, message, undoEvent });
+    }
+    const failed = (what, err) => notify('danger', (err && err.userMessage) || `Couldn't ${what}. Check your connection and try again.`);
 
     // Validate (non-empty, no duplicate) then delegate the server work to the hook.
     async function submitGame() {
@@ -62,8 +73,13 @@ function Scoreboard() {
         return;
       }
       setGameError('');
-      await addGame(name);
-      setNewGame('');
+      try {
+        await addGame(name);
+        setNewGame('');
+        notify('success', `Added game ${name}.`);
+      } catch (err) {
+        failed(`add ${name}`, err);
+      }
     }
 
     async function submitPlayer() {
@@ -74,8 +90,42 @@ function Scoreboard() {
         return;
       }
       setPlayerError('');
-      await addPlayer(initials);
-      setNewPlayer('');
+      try {
+        await addPlayer(initials);
+        setNewPlayer('');
+        notify('success', `Added player ${initials}.`);
+      } catch (err) {
+        failed(`add ${initials}`, err);
+      }
+    }
+
+    // A score click from the table. On success, offer Undo (voids the event,
+    // which also reverses the total).
+    async function handleIncrement(cell, delta) {
+      const player = players.find(p => p.id === cell.playerId);
+      const game = games.find(g => g.id === cell.gameId);
+      const label = `${player ? player.initials : '?'} ${formatDelta(delta)} in ${game ? game.name : '?'}`;
+      try {
+        const event = await increment(cell, delta);
+        if (event) notify('success', label, event);
+      } catch (err) {
+        failed(`save ${label}`, err);
+      }
+    }
+
+    async function undo(event) {
+      setNotice(null);
+      try {
+        await voidEvent(event);
+        notify('success', `Undid ${event.playerInitials} ${formatDelta(event.delta)} in ${event.gameName}.`);
+      } catch (err) {
+        failed('undo that change', err);
+      }
+    }
+
+    function toggleEditing() {
+      if (!editing) setFrozenOrder(sortedPlayers.map(p => p.id));
+      setEditing(!editing);
     }
 
     function handleClick() {
@@ -83,12 +133,18 @@ function Scoreboard() {
     }
 
     // Run the delete the modal was confirming, then close it.
-    function confirmDelete() {
+    async function confirmDelete() {
       if (!pendingDelete) return;
       const { kind, item } = pendingDelete;
       setPendingDelete(null);
-      if (kind === 'game') deleteGame(item);
-      else deletePlayer(item);
+      const label = kind === 'game' ? item.name : item.initials;
+      try {
+        if (kind === 'game') await deleteGame(item);
+        else await deletePlayer(item);
+        notify('success', `Deleted ${kind} ${label}.`);
+      } catch (err) {
+        failed(`delete ${label}`, err);
+      }
     }
 
     const sortedGames = [...games].sort(byName);
@@ -100,11 +156,22 @@ function Scoreboard() {
         playerTotals.set(gs.playerId, playerTotals.get(gs.playerId) + gs.score);
       }
     });
-    const sortedPlayers = [...players].sort((a, b) => {
+    const byWins = [...players].sort((a, b) => {
       const diff = playerTotals.get(b.id) - playerTotals.get(a.id);
       return diff !== 0 ? diff : byInitials(a, b);
     });
-    const scoreLookup = new Map(gameScores.map(gs => [scoreKey(gs.gameId, gs.playerId), gs]));
+    // In edit mode keep the frozen order; players added meanwhile go last.
+    const frozenIndex = (p) => {
+      const i = frozenOrder.indexOf(p.id);
+      return i === -1 ? Infinity : i;
+    };
+    const sortedPlayers = editMode
+      ? [...byWins].sort((a, b) => {
+          const ia = frozenIndex(a);
+          const ib = frozenIndex(b);
+          return ia === ib ? 0 : ia < ib ? -1 : 1;
+        })
+      : byWins;
 
   return (
     <div className="App">
@@ -123,19 +190,37 @@ function Scoreboard() {
       {(!showSignIn || isAuthenticated)
       ?
       <>
-      <div style={{ textAlign: 'center', marginTop: 16 }}>
+      <div className="board-controls">
         <ButtonGroup size="sm">
           <Button variant={view === 'table' ? 'dark' : 'outline-dark'} onClick={() => setView('table')}>Table</Button>
           <Button variant={view === 'trends' ? 'dark' : 'outline-dark'} onClick={() => setView('trends')}>Trends</Button>
         </ButtonGroup>
       </div>
       <div className="board-card">
+      {/* Admin toolbar: the Edit action sits with the table it changes; while
+          editing it becomes a status bar so the mode is unmistakable. */}
+      {isAdmin && view === 'table' && !loading && (
+        editMode
+          ? (
+            <div className="board-toolbar editing" role="status">
+              <span>✎ Editing — changes save instantly</span>
+              <Button size="sm" variant="dark" onClick={toggleEditing}>Done</Button>
+            </div>
+          )
+          : (
+            <div className="board-toolbar">
+              <Button size="sm" variant="outline-secondary" onClick={toggleEditing}>✎ Edit scores</Button>
+            </div>
+          )
+      )}
       {view === 'table'
         ? <TableComponent
             games={sortedGames}
             players={sortedPlayers}
             gameScores={gameScores}
             loading={loading}
+            editing={editMode}
+            onIncrement={handleIncrement}
           />
         : <TrendsChart />}
       </div>
@@ -193,37 +278,24 @@ function Scoreboard() {
           </div>
 
           <div className="mb-3">
+            <strong className="me-2">Games:</strong>
+            {sortedGames.length === 0 && <span className="text-muted">none yet</span>}
             {sortedGames.map(game => (
-              <div key={game.id} className="mb-2 pb-2 border-bottom">
-                <div className="d-flex align-items-center justify-content-between">
-                  <strong>{game.name}</strong>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => setPendingDelete({ kind: 'game', item: game })}
-                  >
-                    Delete
-                  </Button>
-                </div>
-                <div className="mt-1">
-                {sortedPlayers.map(player => {
-                  const cell = scoreLookup.get(scoreKey(game.id, player.id));
-                  if (!cell) return null;
-                  return (
-                    <span key={player.id} className="me-3 d-inline-block mb-1">
-                      {player.initials}:
-                      <Button variant="outline-secondary" size="sm" className="ms-1" disabled={cell.score < 1} onClick={() => increment(cell, -1)}>−</Button>
-                      <span className="mx-2">{cell.score}</span>
-                      <Button variant="outline-secondary" size="sm" onClick={() => increment(cell, 1)}>+</Button>
-                    </span>
-                  );
-                })}
-                </div>
-              </div>
+              <span key={game.id} className="me-3 d-inline-block">
+                <Badge bg="secondary">{game.name}</Badge>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-danger p-0 ms-1"
+                  onClick={() => setPendingDelete({ kind: 'game', item: game })}
+                >
+                  remove
+                </Button>
+              </span>
             ))}
           </div>
 
-          <ScoreHistory onVoid={voidEvent} lastEvent={lastEvent} />
+          <ScoreHistory onVoid={voidEvent} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
       </div>
       : isAuthenticated
           ? <h3>Hello, {user.username} you are not authorized to enter data</h3>
@@ -247,6 +319,27 @@ function Scoreboard() {
           <Button variant="danger" onClick={confirmDelete}>Delete</Button>
         </Modal.Footer>
       </Modal>
+
+      {/* One notice at a time; a new action replaces it. Errors stay longer. */}
+      <ToastContainer position="bottom-center" className="p-3" style={{ position: 'fixed', zIndex: 1080 }}>
+        {notice && (
+          <Toast
+            key={notice.id}
+            bg={notice.variant === 'danger' ? 'danger' : 'dark'}
+            onClose={() => setNotice(null)}
+            delay={notice.variant === 'danger' ? 10000 : 5000}
+            autohide
+          >
+            <Toast.Body className="d-flex align-items-center gap-3 text-white" role={notice.variant === 'danger' ? 'alert' : 'status'}>
+              <span className="flex-grow-1">{notice.message}</span>
+              {notice.undoEvent && (
+                <Button size="sm" variant="outline-light" onClick={() => undo(notice.undoEvent)}>Undo</Button>
+              )}
+              <button type="button" className="btn-close btn-close-white" aria-label="Dismiss" onClick={() => setNotice(null)} />
+            </Toast.Body>
+          </Toast>
+        )}
+      </ToastContainer>
       </div>
   );
 }

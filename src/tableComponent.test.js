@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import TableComponent from './tableComponent';
 
 const players = [
@@ -39,4 +39,27 @@ test('renders headers, game rows, and a computed total when loaded', () => {
   // totals row: SG total = 3 + 2 = 5 (unique value, so safe to assert directly)
   expect(screen.getByText('Total Wins')).toBeInTheDocument();
   expect(screen.getByText('5')).toBeInTheDocument();
+});
+
+test('shows no score buttons outside edit mode', () => {
+  render(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} onIncrement={() => {}} />);
+  expect(screen.queryByRole('button', { name: /add a win/i })).toBeNull();
+});
+
+test('edit mode adds −/+ per cell that call onIncrement with the cell', () => {
+  const onIncrement = jest.fn();
+  render(<TableComponent games={games} players={players} gameScores={gameScores} loading={false} editing onIncrement={onIncrement} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Add a win for SG in Catan' }));
+  expect(onIncrement).toHaveBeenCalledWith(gameScores[0], 1);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Remove a win from NI in Hearts' }));
+  expect(onIncrement).toHaveBeenCalledWith(gameScores[4], -1);
+});
+
+test('edit mode disables − when a score is 0', () => {
+  const zero = gameScores.map(gs => (gs.id === 's1' ? { ...gs, score: 0 } : gs));
+  render(<TableComponent games={games} players={players} gameScores={zero} loading={false} editing onIncrement={() => {}} />);
+  expect(screen.getByRole('button', { name: 'Remove a win from SG in Catan' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Remove a win from NI in Catan' })).toBeEnabled();
 });

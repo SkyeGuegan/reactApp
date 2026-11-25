@@ -15,7 +15,7 @@ const fmtTime = (iso) => {
 // first, with a Void action for bogus entries. Events are fetched lazily when
 // the panel is opened. `onVoid(event)` reverses the event (see useScoreboard);
 // `lastEvent` is the newest event logged this session, prepended while open.
-export default function ScoreHistory({ onVoid, lastEvent }) {
+export default function ScoreHistory({ onVoid, lastEvent, lastVoidedId }) {
   const [open, setOpen] = useState(false);
   const [events, setEvents] = useState(null); // null = not loaded yet
   const [error, setError] = useState('');
@@ -41,6 +41,12 @@ export default function ScoreHistory({ onVoid, lastEvent }) {
     if (!lastEvent) return;
     setEvents(prev => (prev && !prev.some(e => e.id === lastEvent.id) ? [lastEvent, ...prev] : prev));
   }, [lastEvent]);
+
+  // Reflect voids made elsewhere (e.g. Undo on a score notice).
+  useEffect(() => {
+    if (!lastVoidedId) return;
+    setEvents(prev => (prev ? prev.map(e => (e.id === lastVoidedId ? { ...e, voided: true } : e)) : prev));
+  }, [lastVoidedId]);
 
   async function confirmVoid() {
     const event = pending;

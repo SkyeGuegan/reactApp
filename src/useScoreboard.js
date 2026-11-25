@@ -26,6 +26,9 @@ export default function useScoreboard(user) {
   // The most recent ScoreEvent this session logged, so an open history panel
   // can show it without refetching the whole ledger.
   const [lastEvent, setLastEvent] = useState(null);
+  // Id of the most recently voided event (from the history panel or an Undo),
+  // so an open history panel can mark it voided.
+  const [lastVoidedId, setLastVoidedId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -62,6 +65,7 @@ export default function useScoreboard(user) {
       setGameScores([...gameScores, ...created]);
     } catch (err) {
       console.error('Failed to add player', err);
+      throw err;
     }
   }
 
@@ -78,11 +82,15 @@ export default function useScoreboard(user) {
       setGameScores([...gameScores, ...created]);
     } catch (err) {
       console.error('Failed to add game', err);
+      throw err;
     }
   }
 
+  // Returns the logged ScoreEvent (so the caller can offer Undo), or null if
+  // the change was refused (would go below 0) or its history row failed to log.
+  // Throws, after rolling back, if the score change itself failed.
   async function increment(cell, delta) {
-    if (!canApplyDelta(cell.score, delta)) return; // scores never go below 0
+    if (!canApplyDelta(cell.score, delta)) return null; // scores never go below 0
     // Optimistically reflect the change, keep the old list for rollback.
     const previous = gameScores;
     setGameScores(gameScores.map(gs => (gs.id === cell.id ? { ...gs, score: gs.score + delta } : gs)));
@@ -113,13 +121,17 @@ export default function useScoreboard(user) {
           },
           authMode: 'userPool',
         });
-        setLastEvent(eventRes.data.createScoreEvent);
+        const event = eventRes.data.createScoreEvent;
+        setLastEvent(event);
+        return event;
       } catch (eventErr) {
         console.warn('Score updated but failed to log history event', eventErr);
+        return null;
       }
     } catch (err) {
       console.error('Failed to update score', err);
       setGameScores(previous);
+      throw err;
     }
   }
 
@@ -136,6 +148,7 @@ export default function useScoreboard(user) {
       console.error('Failed to delete game', err);
       setGames(previousGames);
       setGameScores(previousScores);
+      throw err;
     }
   }
 
@@ -152,6 +165,7 @@ export default function useScoreboard(user) {
       console.error('Failed to delete player', err);
       setPlayers(previousPlayers);
       setGameScores(previousScores);
+      throw err;
     }
   }
 
@@ -174,12 +188,15 @@ export default function useScoreboard(user) {
       variables: { input: { id: event.id, voided: true }, condition: { not: { voided: { eq: true } } } },
       authMode: 'userPool',
     });
-    const cell = cellForEvent(event, gameScores);
-    if (!cell) return;
+    if (!target) {
+      setLastVoidedId(event.id);
+      return;
+    }
     try {
-      const res = await client.graphql({ query: incrementScoreMutation, variables: { id: cell.id, delta: -event.delta }, authMode: 'userPool' });
+      const res = await client.graphql({ query: incrementScoreMutation, variables: { id: target.id, delta: -event.delta }, authMode: 'userPool' });
       const updated = res.data.incrementScore;
       setGameScores(prev => prev.map(gs => (gs.id === updated.id ? { ...gs, score: updated.score } : gs)));
+      setLastVoidedId(event.id);
     } catch (err) {
       await client.graphql({
         query: updateScoreEventMutation,
@@ -190,5 +207,5 @@ export default function useScoreboard(user) {
     }
   }
 
-  return { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent };
+  return { games, players, gameScores, loading, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId };
 }
