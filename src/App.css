@@ -250,8 +250,10 @@
   font-size: 0.9rem;
 }
 
-/* Played column on the right: muted, with a divider after the player columns. */
+/* Played column on the right: narrow and muted, with a divider after the
+   player columns. */
 .board-card .played-col {
+  width: 5.5rem;
   text-align: center;
   color: var(--muted);
   border-left: 2px solid var(--divider);
@@ -344,4 +346,15 @@
 .App-header .dropdown-item.active .text-body-secondary {
   color: var(--gold-soft-text) !important;
   opacity: 0.8;
+}
+@media (max-width: 600px) {
+  .board-card .played-col {
+    width: 2.75rem;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .board-card th.played-col {
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
 }

@@ -34,6 +34,9 @@ function tableComponent(props) {
   const maxTotal = totals.length ? Math.max(...totals) : 0;
   const isLeader = (i) => maxTotal > 0 && totals[i] === maxTotal;
   const numCol = { textAlign: 'center' };
+  // Player columns share the space equally (otherwise the leader's crown makes
+  // one wider); the Game column takes what's left, Played stays narrow (CSS).
+  const playerCol = { ...numCol, width: `${Math.floor(60 / Math.max(players.length, 1))}%` };
 
   function scoreCell(game, player, score, bold) {
     const cell = cellFor(game.id, player.id);
@@ -128,7 +131,7 @@ function tableComponent(props) {
           <tr>
             <th>Game</th>
             {players.map((p, i) => (
-              <th key={p.id} style={numCol}>
+              <th key={p.id} style={playerCol}>
                 <span>{p.initials}</span>{isLeader(i) ? ' 👑' : ''}
               </th>
             ))}
