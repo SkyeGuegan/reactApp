@@ -16,6 +16,7 @@ import { useTheme } from './theme';
 import GamePage from './GamePage';
 import GamePicker from './GamePicker';
 import ViewIcon from './ViewIcon';
+import ScoringFieldsDialog from './ScoringFieldsDialog';
 import ArtworkDialog from './ArtworkDialog';
 import { useRoute, gameSlug } from './route';
 import useScoreboard from './useScoreboard';
@@ -68,12 +69,13 @@ const amplifyTheme = { name: 'scoreboard', overrides: [defaultDarkModeOverride] 
 
 function Scoreboard({ themeMode, onThemeChange }) {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
-    const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, setGameArt, lastEvent, lastVoidedId } = useScoreboard(user);
+    const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, setGameArt, setGameScoring, lastEvent, lastVoidedId, playerNames, loadPlayerNames, updatePlayerInfo } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
     const [view, setView] = useState('table'); // 'table' | 'trends' | 'games' | 'pick'
     const [showRecord, setShowRecord] = useState(false);
     const [recordGameId, setRecordGameId] = useState(''); // game preselected in Record a game
     const [artGame, setArtGame] = useState(null); // game page's Set artwork dialog
+    const [scoringGame, setScoringGame] = useState(null); // Scoring details dialog
     const route = useRoute();
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
@@ -95,6 +97,12 @@ function Scoreboard({ themeMode, onThemeChange }) {
     const isAdmin = isAuthenticated && inAdminGroup;
     const editMode = isAdmin && editing && view === 'table';
 
+    // Full names are admin-only on the server; fetch them once signed in as admin.
+    useEffect(() => {
+      if (isAdmin) loadPlayerNames();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAdmin]);
+
     function notify(variant, message, undo = null) {
       setNotice({ id: Date.now(), variant, message, undo });
       setNoticeHeld(false);
@@ -114,9 +122,9 @@ function Scoreboard({ themeMode, onThemeChange }) {
       }
     }
 
-    async function handleAddPlayer(initials, core = false) {
+    async function handleAddPlayer(initials, core = false, name = '') {
       try {
-        await addPlayer(initials, { core });
+        await addPlayer(initials, { core, name });
         notify('success', `Added ${core ? 'player' : 'guest'} ${initials}.`);
         return true;
       } catch (err) {
@@ -162,12 +170,24 @@ function Scoreboard({ themeMode, onThemeChange }) {
     }
 
     // Guests added from the Record a game dialog. Resolves to the new player.
-    async function handleAddGuest(initials) {
+    async function handleAddGuest(initials, name = '') {
       try {
-        return await addPlayer(initials, { core: false });
+        return await addPlayer(initials, { core: false, name });
       } catch (err) {
         failed(`add guest ${initials}`, err);
         return null;
+      }
+    }
+
+    // Edit player dialog: new initials and/or full name. Resolves true on success.
+    async function handleEditPlayer(player, info) {
+      try {
+        const updated = await updatePlayerInfo(player, info);
+        notify('success', `Saved ${updated.initials}.`);
+        return true;
+      } catch (err) {
+        failed(`save ${player.initials}`, err);
+        return false;
       }
     }
 
@@ -192,6 +212,19 @@ function Scoreboard({ themeMode, onThemeChange }) {
         notify('success', `Removed ${play.gameName}.`);
       } catch (err) {
         failed('undo that game', err);
+      }
+    }
+
+    async function handleSetScoring(game, fields) {
+      try {
+        await setGameScoring(game, fields);
+        notify('success', fields.length
+          ? `${game.name} now collects ${fields.map(f => f.label.toLowerCase()).join(' and ')}.`
+          : `${game.name} no longer collects scoring details.`);
+        return true;
+      } catch (err) {
+        failed(`save scoring details for ${game.name}`, err);
+        return false;
       }
     }
 
@@ -323,6 +356,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
                   isAdmin={isAdmin}
                   onRecord={() => { setRecordGameId(currentGame.id); setShowRecord(true); }}
                   onSetArt={() => setArtGame(currentGame)}
+                  onSetScoring={() => setScoringGame(currentGame)}
                 />
               : <div className="p-3 text-start"><a href="#/" className="game-back">← Back to the scoreboard</a><p className="mt-3 mb-0">That game isn't on the scoreboard.</p></div>}
         </div>
@@ -376,7 +410,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
                 onRecord={(gameId) => { setRecordGameId(gameId); setShowRecord(true); }}
                 onAddGame={handleAddGame}
               />
-            : <AllGames plays={plays} players={players} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
+            : <AllGames plays={plays} players={players} games={games} gameScores={gameScores} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
       </div>
       </>
       )}
@@ -394,8 +428,11 @@ function Scoreboard({ themeMode, onThemeChange }) {
         playerTotals={playerTotals}
         onAddGame={handleAddGame}
         onAddPlayer={handleAddPlayer}
+        onEditPlayer={handleEditPlayer}
+        playerNames={playerNames}
         onRequestDelete={(kind, item) => setPendingDelete({ kind, item })}
         onSetArt={handleSetArt}
+        onOpenScoring={setScoringGame}
         onVoid={voidEvent}
         onVoidPlay={voidPlayFromHistory}
         plays={plays}
@@ -415,11 +452,15 @@ function Scoreboard({ themeMode, onThemeChange }) {
           players={players}
           onSave={handleRecordPlay}
           onAddGuest={handleAddGuest}
+          playerNames={playerNames}
           initialGameId={recordGameId}
         />
       )}
       {isAdmin && (
         <ArtworkDialog game={artGame} onHide={() => setArtGame(null)} onSave={(art) => handleSetArt(artGame, art)} />
+      )}
+      {isAdmin && (
+        <ScoringFieldsDialog game={scoringGame} onHide={() => setScoringGame(null)} onSave={(fields) => handleSetScoring(scoringGame, fields)} />
       )}
 
       <Modal show={!!pendingDecrease} onHide={() => setPendingDecrease(null)} centered>

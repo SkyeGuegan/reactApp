@@ -60,11 +60,12 @@ test('new players are guests unless "Regular player" is ticked', async () => {
   const props = setup();
   fireEvent.change(screen.getByLabelText('New player'), { target: { value: 'ab' } });
   fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[1]);
-  await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('AB', false));
+  await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('AB', false, ''));
   fireEvent.change(screen.getByLabelText('New player'), { target: { value: 'cd' } });
+  fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Cara Dune' } });
   fireEvent.click(screen.getByLabelText(/Regular player/));
   fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[1]);
-  await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('CD', true));
+  await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('CD', true, 'Cara Dune'));
 });
 
 test('roster labels guests and the test player', () => {

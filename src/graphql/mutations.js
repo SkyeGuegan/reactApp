@@ -22,8 +22,11 @@ export const createPlayer = /* GraphQL */ `
     createPlayer(input: $input, condition: $condition) {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -36,8 +39,11 @@ export const updatePlayer = /* GraphQL */ `
     updatePlayer(input: $input, condition: $condition) {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -50,8 +56,11 @@ export const deletePlayer = /* GraphQL */ `
     deletePlayer(input: $input, condition: $condition) {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -64,6 +73,10 @@ export const createGame = /* GraphQL */ `
     createGame(input: $input, condition: $condition) {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -78,6 +91,10 @@ export const updateGame = /* GraphQL */ `
     updateGame(input: $input, condition: $condition) {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -92,6 +109,10 @@ export const deleteGame = /* GraphQL */ `
     deleteGame(input: $input, condition: $condition) {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -160,6 +181,8 @@ export const createScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
       createdAt
       updatedAt
       __typename
@@ -180,6 +203,8 @@ export const updateScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
       createdAt
       updatedAt
       __typename
@@ -200,6 +225,77 @@ export const deleteScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const createPlay = /* GraphQL */ `
+  mutation CreatePlay(
+    $input: CreatePlayInput!
+    $condition: ModelPlayConditionInput
+  ) {
+    createPlay(input: $input, condition: $condition) {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const updatePlay = /* GraphQL */ `
+  mutation UpdatePlay(
+    $input: UpdatePlayInput!
+    $condition: ModelPlayConditionInput
+  ) {
+    updatePlay(input: $input, condition: $condition) {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const deletePlay = /* GraphQL */ `
+  mutation DeletePlay(
+    $input: DeletePlayInput!
+    $condition: ModelPlayConditionInput
+  ) {
+    deletePlay(input: $input, condition: $condition) {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
       createdAt
       updatedAt
       __typename

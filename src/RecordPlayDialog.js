@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Button, Badge } from 'react-bootstrap';
 import { corePlayers, classifyPlay, winShares, fmtWins } from './plays';
+import { fieldsOf, cleanDetails, topScorers } from './scoring';
 
 const todayLocal = () => {
   const d = new Date();
@@ -18,17 +19,22 @@ const toPlayedAt = (ymd) => {
 // Admin dialog for recording one game: which game, when, who played, who won.
 // Core players start ticked. Guests can be added inline (saved as non-core
 // players). The footer explains whether the game will count on the main table.
-// onSave({ gameId, playedAt, playerIds, winnerIds, allPlayers }) resolves
-// truthy on success; onAddGuest(initials) resolves to the new player.
-export default function RecordPlayDialog({ show, onHide, games, players, onSave, onAddGuest, initialGameId = '' }) {
+// If the game collects scoring details (points, faction…), an optional grid
+// asks for them per player.
+// onSave({ gameId, playedAt, playerIds, winnerIds, details, allPlayers }) resolves
+// truthy on success; onAddGuest(initials, name) resolves to the new player.
+// playerNames (Map id → full name, admin-only) shows on hover and in clashes.
+export default function RecordPlayDialog({ show, onHide, games, players, onSave, onAddGuest, playerNames = new Map(), initialGameId = '' }) {
   const [gameId, setGameId] = useState('');
   const [date, setDate] = useState(todayLocal());
   const [playing, setPlaying] = useState(new Set());
   const [winners, setWinners] = useState(new Set());
   const [guest, setGuest] = useState('');
+  const [guestName, setGuestName] = useState('');
   const [guestError, setGuestError] = useState('');
   const [extraPlayers, setExtraPlayers] = useState([]); // guests added in this dialog
   const [busy, setBusy] = useState(false);
+  const [rawDetails, setRawDetails] = useState({}); // { playerId: { key: string } }
 
   const allPlayers = [...players, ...extraPlayers.filter(x => !players.some(p => p.id === x.id))];
   const core = corePlayers(allPlayers);
@@ -50,8 +56,12 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
     setGuest('');
     setGuestError('');
     setExtraPlayers([]);
+    setRawDetails({});
     setBusy(false);
   }, [show, coreIds, initialGameId]);
+
+  // Details belong to one game's fields; start over when the game changes.
+  useEffect(() => { setRawDetails({}); }, [gameId]);
 
   const toggle = (set, setter, id) => {
     const next = new Set(set);
@@ -66,22 +76,30 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
   async function addGuest() {
     const initials = guest.trim().toUpperCase();
     if (!initials) return;
-    if (allPlayers.some(p => p.initials.toUpperCase() === initials)) {
-      setGuestError(`${initials} is already a player — tick them above.`);
+    const clash = allPlayers.find(p => p.initials.toUpperCase() === initials);
+    if (clash) {
+      const who = playerNames.get(clash.id);
+      setGuestError(`${initials} is already a player${who ? ` (${who})` : ''} — tick them above, or use different initials for someone new.`);
       return;
     }
     setBusy(true);
     try {
-      const p = await onAddGuest(initials);
+      const p = await onAddGuest(initials, guestName);
       if (p) {
         setExtraPlayers(prev => [...prev, p]);
         setPlaying(prev => new Set(prev).add(p.id));
         setGuest('');
+        setGuestName('');
       }
     } finally {
       setBusy(false);
     }
   }
+
+  const selectedGame = games.find(g => g.id === gameId) || null;
+  const fields = fieldsOf(selectedGame);
+  const numberField = fields.find(fl => fl.type === 'number');
+  const setDetail = (pid, key, value) => setRawDetails(prev => ({ ...prev, [pid]: { ...(prev[pid] || {}), [key]: value } }));
 
   const playerIds = ordered.filter(p => playing.has(p.id)).map(p => p.id);
   const winnerIds = playerIds.filter(id => winners.has(id));
@@ -101,7 +119,8 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
 
   async function save() {
     setBusy(true);
-    const ok = await onSave({ gameId, playedAt: toPlayedAt(date), playerIds, winnerIds, allPlayers });
+    const details = cleanDetails(rawDetails, fields, playerIds);
+    const ok = await onSave({ gameId, playedAt: toPlayedAt(date), playerIds, winnerIds, details, allPlayers });
     setBusy(false);
     if (ok) onHide();
   }
@@ -112,6 +131,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
       inline
       type="checkbox"
       id={`plays-${p.id}`}
+      title={playerNames.get(p.id)}
       label={<>{p.initials}{p.hidden && <Badge bg="secondary" className="ms-1">test</Badge>}</>}
       checked={playing.has(p.id)}
       onChange={() => togglePlaying(p.id)}
@@ -151,12 +171,65 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
               placeholder="New guest's initials"
               maxLength={4}
               aria-label="New guest's initials"
+              style={{ maxWidth: 140 }}
+            />
+            <Form.Control
+              size="sm"
+              value={guestName}
+              onChange={e => setGuestName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addGuest(); } }}
+              placeholder="Full name (optional)"
+              aria-label="New guest's full name"
               style={{ maxWidth: 200 }}
             />
             <Button size="sm" variant="outline-secondary" disabled={!guest.trim() || busy} onClick={addGuest}>Add guest</Button>
           </div>
           {guestError && <div className="text-danger small mt-1" role="alert">{guestError}</div>}
         </fieldset>
+
+        {fields.length > 0 && playerIds.length > 0 && (
+          <fieldset className="mb-3">
+            <legend className="fs-6 fw-semibold mb-1">Details <span className="fw-normal text-muted small">(optional)</span></legend>
+            <table className="details-grid">
+              <thead>
+                <tr><th />{fields.map(fl => <th key={fl.key}>{fl.label}</th>)}</tr>
+              </thead>
+              <tbody>
+                {ordered.filter(p => playing.has(p.id)).map(p => (
+                  <tr key={p.id}>
+                    <th scope="row">{p.initials}</th>
+                    {fields.map(fl => (
+                      <td key={fl.key}>
+                        <Form.Control
+                          size="sm"
+                          type={fl.type === 'number' ? 'number' : 'text'}
+                          inputMode={fl.type === 'number' ? 'decimal' : undefined}
+                          list={fl.options ? `opts-${fl.key}` : undefined}
+                          value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
+                          onChange={e => setDetail(p.id, fl.key, e.target.value)}
+                          aria-label={`${fl.label} for ${p.initials}`}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {fields.filter(fl => fl.options).map(fl => (
+              <datalist key={fl.key} id={`opts-${fl.key}`}>{fl.options.map(o => <option key={o} value={o} />)}</datalist>
+            ))}
+            {numberField && (
+              <Button
+                size="sm"
+                variant="link"
+                className="p-0 mt-1"
+                onClick={() => setWinners(new Set(topScorers(cleanDetails(rawDetails, fields, playerIds), numberField.key, playerIds)))}
+              >
+                Set winner from highest {numberField.label.toLowerCase()}
+              </Button>
+            )}
+          </fieldset>
+        )}
 
         <fieldset>
           <legend className="fs-6 fw-semibold mb-1">Who won</legend>

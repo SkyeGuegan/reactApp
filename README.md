@@ -10,6 +10,8 @@ A win tally for our game nights: who has won which game, overall totals, and how
 
 - **Table**: wins per game and player, with a Totals row. The overall leader gets a crown and gold total; the best score in each game is bold. Scores can include half points (from shared wins).
 - **Game pages**: click a game for its own page (e.g. `#/game/settlers-of-catan`): box art, a BoardGameGeek link, standings with win rates, wins over time, and recent games.
+- **Scoring details** (optional, per game): e.g. Catan victory points, Terra Mystica faction + points. Game pages then show best and average winning scores and faction win rates. Admins choose the fields under Scoring details.
+- **All time vs Recorded**: All games → Everyone counts games from before individual recording as games between the three regulars.
 - **Pick a game**: a wheel that picks a random game from the ones you tick (plus any typed in). Optional "favour games we haven't played lately" makes long-unplayed games come up more; slice sizes show the odds.
 - **Box art**: each game shows its BoardGameGeek cover (admins set or change it under Manage → Roster → Set artwork, or on the game's page).
 - **Trends**: each player's cumulative wins over time. Corrections (a win added then removed) don't show as dips.

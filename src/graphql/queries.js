@@ -6,8 +6,11 @@ export const getPlayer = /* GraphQL */ `
     getPlayer(id: $id) {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -22,8 +25,11 @@ export const listPlayers = /* GraphQL */ `
       items {
         id
         initials
+        core
+        hidden
         createdAt
         updatedAt
+        name
         __typename
       }
       nextToken
@@ -36,6 +42,10 @@ export const getGame = /* GraphQL */ `
     getGame(id: $id) {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -52,6 +62,10 @@ export const listGames = /* GraphQL */ `
       items {
         id
         name
+        baselinePlays
+        bggId
+        imageUrl
+        scoreFields
         createdAt
         updatedAt
         __typename
@@ -106,6 +120,8 @@ export const getScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
       createdAt
       updatedAt
       __typename
@@ -128,6 +144,56 @@ export const listScoreEvents = /* GraphQL */ `
         gameName
         recordedBy
         voided
+        playId
+        occurredAt
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const getPlay = /* GraphQL */ `
+  query GetPlay($id: ID!) {
+    getPlay(id: $id) {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listPlays = /* GraphQL */ `
+  query ListPlays(
+    $filter: ModelPlayFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listPlays(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        gameId
+        gameName
+        playedAt
+        playerIds
+        winnerIds
+        counted
+        test
+        recordedBy
+        voided
+        details
         createdAt
         updatedAt
         __typename

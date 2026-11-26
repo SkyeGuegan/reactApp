@@ -17,6 +17,10 @@ type Player
   initials: String!
   core: Boolean
   hidden: Boolean
+  # Full name, for admins to tell players apart. Field-level auth: only the
+  # "admin" group can read or write it — the public API key never sees it, so
+  # public queries must not request this field. The site displays initials.
+  name: String @auth(rules: [{ allow: groups, groups: ["admin"] }])
 }
 
 # A game (one row in the scoreboard).
@@ -38,6 +42,10 @@ type Game
   # (shown as a thumbnail; any https image URL works).
   bggId: Int
   imageUrl: String
+  # Optional per-player details to collect when recording this game, as JSON:
+  # [{ "key": "points", "label": "Victory points", "type": "number" },
+  #  { "key": "faction", "label": "Faction", "type": "text", "options": [...] }]
+  scoreFields: AWSJSON
 }
 
 # One player's score in one game (a single cell of the board). Adding a player
@@ -119,6 +127,9 @@ type Play
   test: Boolean
   recordedBy: String
   voided: Boolean
+  # Optional per-player details for this game, keyed by player id then by the
+  # game's scoreFields keys, as JSON: { "<playerId>": { "points": 10 } }.
+  details: AWSJSON
 }
 
 # Atomic, server-side increment of a single GameScore cell.

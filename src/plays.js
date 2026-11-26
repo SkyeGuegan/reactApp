@@ -57,6 +57,32 @@ export function everyoneStats(players, plays) {
     .sort((a, b) => b.wins - a.wins || b.played - a.played || a.player.initials.localeCompare(b.player.initials));
 }
 
+// All-time record: the regulars' history from before individual games were
+// recorded counts as games between all three of them (Played baseline), plus
+// every recorded game. Regulars' wins are their table totals (history + counted
+// recorded games) plus wins in recorded games that didn't count on the table.
+// Guests only have recorded games. Rows: { player, played, wins }, sorted.
+export function allTimeStats(players, plays, games, gameScores) {
+  const core = corePlayers(players);
+  const coreIds = new Set(core.map(p => p.id));
+  const baseline = games.reduce((sum, g) => sum + Math.round(g.baselinePlays || 0), 0);
+  const recorded = live(plays).filter(p => !p.test);
+  const rows = core.map(player => {
+    const tableWins = gameScores.filter(gs => gs.playerId === player.id).reduce((a, gs) => a + gs.score, 0);
+    let played = baseline;
+    let extraWins = 0;
+    for (const p of recorded) {
+      if (p.playerIds.includes(player.id)) played += 1;
+      if (!p.counted && p.winnerIds.includes(player.id)) extraWins += 1 / p.winnerIds.length;
+    }
+    return { player, played, wins: tableWins + extraWins };
+  });
+  const guests = everyoneStats(players, recorded).filter(r => !coreIds.has(r.player.id));
+  return [...rows, ...guests]
+    .filter(r => r.played > 0)
+    .sort((a, b) => b.wins - a.wins || b.played - a.played || a.player.initials.localeCompare(b.player.initials));
+}
+
 // How many counted games a guest won (alone or shared). These are in Played
 // but in nobody's table wins, so the table notes them.
 export function gamesWonByGuests(plays, players) {

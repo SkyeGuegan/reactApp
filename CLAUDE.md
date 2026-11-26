@@ -40,6 +40,7 @@ Use `craco`, never plain `react-scripts`: `craco.config.js` disables webpack 5's
 **Auth:** the API's default mode is API key. Every model allows public `read` via `apiKey` and full access to the Cognito `admin` group; `incrementScore` is restricted to `admin` via `@aws_cognito_user_pools`. Client reads pass `authMode: 'apiKey'`, writes pass `authMode: 'userPool'`. The backend is the real security boundary; the UI's `isAdmin` (a `cognito:groups` check from `fetchAuthSession()` in `src/App.js`) only controls what's shown. The Cognito identity pool is intentionally stripped from the runtime config in `src/api.js` (unauthenticated access is disabled and would otherwise cause 400s).
 
 - `Player.core` marks the regulars shown on the main table; `Player.hidden` marks the test player (TEST), never shown publicly.
+- `Player.name` (full name) has field-level auth: admin group only. The public `listPlayers` must never request it (an API-key query naming it fails); admins load names via `listPlayerNames` with `userPool`. The site always displays initials; names only appear in admin UI (Roster, Edit player, Record a game).
 - `Play` records one game: who played, who won. It `counted` on the main table only if every core player played and no hidden player did; then each core winner gets an equal share of 1 win via `incrementScore` + ScoreEvents with `playId` (and `occurredAt` = played date, which Trends uses). Non-counted plays still feed the All games view. Played column = `Game.baselinePlays` (pre-Play estimate) + counted plays. Rules live in `src/plays.js`.
 
 **Client layers:**
@@ -47,6 +48,8 @@ Use `craco`, never plain `react-scripts`: `craco.config.js` disables webpack 5's
 - `src/useScoreboard.js` — owns board state (games, players, gameScores) and all admin mutations, with optimistic updates and rollback on failure. `increment` calls `incrementScore`, then writes a `ScoreEvent` fire-and-forget (a failed event is logged, not rolled back).
 - `src/App.js` — view layer: header/sign-in toggle, Table|Trends switch, admin panel, delete-confirmation modal, input validation. Sorts player columns by total wins.
 - `src/TrendsChart.js` loads `ScoreEvent`s lazily (only on the Trends view); the pure transform lives in `src/trends.js` so it's unit-tested without rendering Recharts.
+
+**Scoring details:** `Game.scoreFields` (AWSJSON list of { key, label, type: number|text, options? }) says what optional per-player details to collect; `Play.details` (AWSJSON { playerId: { key: value } }) holds them. Parsing, cleaning and per-game stats live in `src/scoring.js`; AWSJSON goes over the wire as a string. Test plays are excluded from stats.
 
 **Navigation:** hash routing in `src/route.js` — `#/game/<slug>` (slug from the game name) renders `GamePage`; anything else is the board. No router library; hash URLs need no Amplify rewrite rules. `Game.bggId`/`imageUrl` hold BoardGameGeek link + box art (images hot-linked from cf.geekdo-images.com; thumbnails hide themselves on load errors).
 

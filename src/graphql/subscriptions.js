@@ -6,8 +6,11 @@ export const onCreatePlayer = /* GraphQL */ `
     onCreatePlayer {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -17,8 +20,11 @@ export const onUpdatePlayer = /* GraphQL */ `
     onUpdatePlayer {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -28,8 +34,11 @@ export const onDeletePlayer = /* GraphQL */ `
     onDeletePlayer {
       id
       initials
+      core
+      hidden
       createdAt
       updatedAt
+      name
       __typename
     }
   }
@@ -39,6 +48,10 @@ export const onCreateGame = /* GraphQL */ `
     onCreateGame {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -50,6 +63,10 @@ export const onUpdateGame = /* GraphQL */ `
     onUpdateGame {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -61,6 +78,10 @@ export const onDeleteGame = /* GraphQL */ `
     onDeleteGame {
       id
       name
+      baselinePlays
+      bggId
+      imageUrl
+      scoreFields
       createdAt
       updatedAt
       __typename
@@ -117,6 +138,8 @@ export const onCreateScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
       createdAt
       updatedAt
       __typename
@@ -134,6 +157,8 @@ export const onUpdateScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
       createdAt
       updatedAt
       __typename
@@ -151,6 +176,68 @@ export const onDeleteScoreEvent = /* GraphQL */ `
       gameName
       recordedBy
       voided
+      playId
+      occurredAt
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onCreatePlay = /* GraphQL */ `
+  subscription OnCreatePlay {
+    onCreatePlay {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onUpdatePlay = /* GraphQL */ `
+  subscription OnUpdatePlay {
+    onUpdatePlay {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onDeletePlay = /* GraphQL */ `
+  subscription OnDeletePlay {
+    onDeletePlay {
+      id
+      gameId
+      gameName
+      playedAt
+      playerIds
+      winnerIds
+      counted
+      test
+      recordedBy
+      voided
+      details
       createdAt
       updatedAt
       __typename

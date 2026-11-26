@@ -1,4 +1,4 @@
-import { corePlayers, classifyPlay, winShares, playedCounts, everyoneStats, fmtWins, gamesWonByGuests } from './plays';
+import { corePlayers, classifyPlay, winShares, playedCounts, everyoneStats, fmtWins, gamesWonByGuests, allTimeStats } from './plays';
 
 const SG = { id: 'sg', initials: 'SG', core: true };
 const NI = { id: 'ni', initials: 'NI', core: true };
@@ -66,4 +66,25 @@ test('gamesWonByGuests counts counted, live, non-test games a guest won', () => 
     { counted: true, winnerIds: ['t'], test: true },
   ];
   expect(gamesWonByGuests(plays, players)).toBe(2);
+});
+
+test('allTimeStats counts earlier games as regulars-only games plus every recorded game', () => {
+  const games = [{ id: 'g1', baselinePlays: 10 }, { id: 'g2', baselinePlays: 2.5 }];
+  const gameScores = [
+    { gameId: 'g1', playerId: 'sg', score: 6 }, { gameId: 'g1', playerId: 'ni', score: 4 },
+    { gameId: 'g2', playerId: 'mg', score: 2.5 }, { gameId: 'g2', playerId: 'sg', score: 1 },
+  ];
+  const plays = [
+    { gameId: 'g1', playerIds: ['sg', 'ni', 'mg', 'ab'], winnerIds: ['sg'], counted: true },  // already in sg's table score
+    { gameId: 'g1', playerIds: ['sg', 'ni', 'mg', 'ab'], winnerIds: ['ab'], counted: true },  // guest win
+    { gameId: 'g1', playerIds: ['sg', 'ni'], winnerIds: ['ni'], counted: false },              // not on the table
+    { gameId: 'g1', playerIds: ['sg', 't'], winnerIds: ['t'], test: true },
+  ];
+  const rows = Object.fromEntries(allTimeStats(players, plays, games, gameScores).map(r => [r.player.initials, [r.played, r.wins]]));
+  // baseline = round(10) + round(2.5) = 13
+  expect(rows.SG).toEqual([16, 7]);
+  expect(rows.NI).toEqual([16, 5]);
+  expect(rows.MG).toEqual([15, 2.5]);
+  expect(rows.AB).toEqual([2, 1]);
+  expect(rows.TEST).toBeUndefined();
 });

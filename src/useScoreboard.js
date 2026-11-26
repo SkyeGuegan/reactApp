@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { client, fetchAllPages } from './api';
-import { listGames, listPlayers, listGameScores, listPlays, listScoreEvents } from './graphql/customQueries';
+import { listGames, listPlayers, listPlayerNames, listGameScores, listPlays, listScoreEvents } from './graphql/customQueries';
 import {
   createGame as createGameMutation,
   deleteGame as deleteGameMutation,
   updateGame as updateGameMutation,
   createPlayer as createPlayerMutation,
+  updatePlayer as updatePlayerMutation,
   deletePlayer as deletePlayerMutation,
   createGameScore as createGameScoreMutation,
   deleteGameScore as deleteGameScoreMutation,
@@ -35,6 +36,9 @@ export default function useScoreboard(user) {
   // Id of the most recently voided event (from the history panel or an Undo),
   // so an open history panel can mark it voided.
   const [lastVoidedId, setLastVoidedId] = useState(null);
+  // Admin-only full names (player id -> name), loaded with the admin's sign-in.
+  // Never part of the public data; empty for visitors and non-admins.
+  const [playerNames, setPlayerNames] = useState(new Map());
 
   useEffect(() => {
     let active = true;
@@ -61,13 +65,34 @@ export default function useScoreboard(user) {
     return () => { active = false; };
   }, []);
 
-  // Add a player by initials. Core players (shown on the main table) are
-  // zero-filled across every existing game; guests get no table cells.
-  // Returns the new player.
-  async function addPlayer(initials, { core = false } = {}) {
+  // Admins only: load players' full names using the admin's sign-in (the field
+  // is admin-only on the server). Quietly leaves names empty if not allowed.
+  async function loadPlayerNames() {
     try {
-      const res = await client.graphql({ query: createPlayerMutation, variables: { input: { initials, core } }, authMode: 'userPool' });
+      const names = new Map();
+      let nextToken = null;
+      do {
+        const res = await client.graphql({ query: listPlayerNames, variables: { limit: 1000, nextToken }, authMode: 'userPool' });
+        for (const p of res.data.listPlayers.items) if (p.name) names.set(p.id, p.name);
+        nextToken = res.data.listPlayers.nextToken;
+      } while (nextToken);
+      setPlayerNames(names);
+    } catch (err) {
+      console.warn('Player names unavailable (admins only)', err);
+    }
+  }
+
+  // Add a player by initials (and, for admins, an optional full name). Core
+  // players (shown on the main table) are zero-filled across every existing
+  // game; guests get no table cells. Returns the new player.
+  async function addPlayer(initials, { core = false, name = '' } = {}) {
+    try {
+      const input = { initials, core, ...(name.trim() ? { name: name.trim() } : {}) };
+      const res = await client.graphql({ query: createPlayerMutation, variables: { input }, authMode: 'userPool' });
       const player = res.data.createPlayer;
+      // Use the name we sent: AppSync returns admin-only fields as null in
+      // mutation responses even when they saved.
+      if (input.name) setPlayerNames(prev => new Map(prev).set(player.id, input.name));
       const created = !core ? [] : await Promise.all(games.map(game =>
         client.graphql({ query: createGameScoreMutation, variables: { input: { gameId: game.id, playerId: player.id, score: 0 } }, authMode: 'userPool' })
           .then(r => r.data.createGameScore)
@@ -226,12 +251,17 @@ export default function useScoreboard(user) {
   // win, logged as ScoreEvents linked by playId and dated playedAt.
   // Returns the saved play. Throws if the Play itself couldn't be saved; a
   // failure while applying wins is rethrown after voiding what was applied.
-  async function recordPlay({ gameId, playedAt, playerIds, winnerIds, allPlayers = players }) {
+  async function recordPlay({ gameId, playedAt, playerIds, winnerIds, details = null, allPlayers = players }) {
     const game = games.find(g => g.id === gameId);
     const { counted, test } = classifyPlay(playerIds, allPlayers);
     const res = await client.graphql({
       query: createPlayMutation,
-      variables: { input: { gameId, gameName: game ? game.name : null, playedAt, playerIds, winnerIds, counted, test, recordedBy: user ? user.username : null } },
+      variables: { input: {
+        gameId, gameName: game ? game.name : null, playedAt, playerIds, winnerIds, counted, test,
+        recordedBy: user ? user.username : null,
+        // Optional per-player scoring details (AWSJSON is sent as a string).
+        ...(details && Object.keys(details).length ? { details: JSON.stringify(details) } : {}),
+      } },
       authMode: 'userPool',
     });
     const play = res.data.createPlay;
@@ -288,5 +318,33 @@ export default function useScoreboard(user) {
     return updated;
   }
 
-  return { games, players, gameScores, plays, loading, loadError, recordPlay, voidPlay, setGameArt, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId };
+  // Set which optional scoring details to collect for a game (empty = none).
+  async function setGameScoring(game, fields) {
+    const res = await client.graphql({
+      query: updateGameMutation,
+      variables: { input: { id: game.id, scoreFields: fields.length ? JSON.stringify(fields) : null } },
+      authMode: 'userPool',
+    });
+    const updated = res.data.updateGame;
+    setGames(prev => prev.map(g => (g.id === updated.id ? { ...g, ...updated } : g)));
+    return updated;
+  }
+
+  // Admins: change a player's initials and/or full name. Throws on failure.
+  // (Past history rows keep the initials they were recorded with.)
+  async function updatePlayerInfo(player, { initials, name }) {
+    const input = { id: player.id, initials: initials.trim().toUpperCase(), name: name.trim() || null };
+    const res = await client.graphql({ query: updatePlayerMutation, variables: { input }, authMode: 'userPool' });
+    const updated = res.data.updatePlayer;
+    setPlayers(prev => prev.map(p => (p.id === updated.id ? { ...p, initials: updated.initials } : p)));
+    setPlayerNames(prev => {
+      const next = new Map(prev);
+      // input.name, not updated.name: the response nulls admin-only fields.
+      if (input.name) next.set(updated.id, input.name); else next.delete(updated.id);
+      return next;
+    });
+    return updated;
+  }
+
+  return { games, players, gameScores, plays, loading, loadError, recordPlay, voidPlay, setGameArt, setGameScoring, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, lastEvent, lastVoidedId, playerNames, loadPlayerNames, updatePlayerInfo };
 }

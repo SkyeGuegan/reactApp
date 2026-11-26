@@ -10,6 +10,20 @@ export const createPlayer = /* GraphQL */ `
       initials
       core
       hidden
+      name
+    }
+  }
+`;
+
+// Edit a player's initials and/or admin-only full name: { id, initials?, name? }.
+export const updatePlayer = /* GraphQL */ `
+  mutation UpdatePlayer($input: UpdatePlayerInput!) {
+    updatePlayer(input: $input) {
+      id
+      initials
+      core
+      hidden
+      name
     }
   }
 `;
@@ -30,6 +44,7 @@ export const createGame = /* GraphQL */ `
       baselinePlays
       bggId
       imageUrl
+      scoreFields
     }
   }
 `;
@@ -43,6 +58,7 @@ export const updateGame = /* GraphQL */ `
       baselinePlays
       bggId
       imageUrl
+      scoreFields
     }
   }
 `;
@@ -128,7 +144,8 @@ const PLAY_FIELDS = `
       counted
       test
       recordedBy
-      voided`;
+      voided
+      details`;
 
 export const createPlay = /* GraphQL */ `
   mutation CreatePlay($input: CreatePlayInput!) {

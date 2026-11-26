@@ -11,6 +11,22 @@ export const listGames = /* GraphQL */ `
         baselinePlays
         bggId
         imageUrl
+        scoreFields
+      }
+      nextToken
+    }
+  }
+`;
+
+// Admin-only: players' full names. `name` has field-level auth (admin group),
+// so this must be called with authMode 'userPool' by an admin. Never add
+// `name` to the public listPlayers below — API-key requests can't read it.
+export const listPlayerNames = /* GraphQL */ `
+  query ListPlayerNames($limit: Int, $nextToken: String) {
+    listPlayers(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        name
       }
       nextToken
     }
@@ -83,6 +99,7 @@ export const listPlays = /* GraphQL */ `
         test
         recordedBy
         voided
+        details
       }
       nextToken
     }

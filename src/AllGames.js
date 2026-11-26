@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Table, Badge, Button, Modal } from 'react-bootstrap';
-import { everyoneStats, fmtWins } from './plays';
+import { Table, Badge, Button, Modal, ButtonGroup } from 'react-bootstrap';
+import { everyoneStats, allTimeStats, fmtWins } from './plays';
 
 import { fmtPlayDate } from './dates';
 const PAGE = 20;
@@ -19,21 +19,24 @@ export function voidEffect(play, players) {
 
 // Secondary view: every recorded game, including ones that don't count on the
 // main table (someone missing) and guests' results.
-//   - Everyone: games played / wins / win rate per player across recorded games.
+//   - Everyone: games played / wins / win rate per player, either All time
+//     (earlier history counts as games between the regulars) or Recorded games.
 //   - Recent games: newest first, with who played and who won.
 // Test plays (hidden test player) are shown to admins only, labelled.
 // onVoid(play) is passed for admins; voiding asks for confirmation here.
-export default function AllGames({ plays, players, isAdmin, onVoid }) {
+export default function AllGames({ plays, players, isAdmin, onVoid, games = [], gameScores = [] }) {
   const [shown, setShown] = useState(PAGE);
   const [pending, setPending] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [scope, setScope] = useState('all'); // 'all' | 'recorded'
 
   const byId = new Map(players.map(p => [p.id, p]));
   const name = (id) => (byId.get(id) ? byId.get(id).initials : '?');
   const visiblePlays = plays
     .filter(p => !p.voided && (isAdmin || !p.test))
     .sort((a, b) => (a.playedAt < b.playedAt ? 1 : a.playedAt > b.playedAt ? -1 : 0));
-  const stats = everyoneStats(players, plays);
+  const recordedStats = everyoneStats(players, plays);
+  const stats = scope === 'all' ? allTimeStats(players, plays, games, gameScores) : recordedStats;
   const realPlays = visiblePlays.filter(p => !p.test);
   const fmtDay = (iso) => fmtPlayDate(iso, isAdmin); // exact day for admins, month for visitors
   const since = realPlays.length ? fmtDay(realPlays[realPlays.length - 1].playedAt) : null;
@@ -54,11 +57,19 @@ export default function AllGames({ plays, players, isAdmin, onVoid }) {
   return (
     <div className="p-2 text-start">
       <h2 className="manage-subtitle mt-1">Everyone</h2>
+      <ButtonGroup size="sm" className="mb-2" aria-label="Which games to count">
+        <Button variant={scope === 'all' ? 'dark' : 'outline-dark'} onClick={() => setScope('all')}>All time</Button>
+        <Button variant={scope === 'recorded' ? 'dark' : 'outline-dark'} onClick={() => setScope('recorded')}>Recorded games</Button>
+      </ButtonGroup>
       {!stats.length ? (
         <p className="text-muted small mb-4">No real games recorded yet — only test games, which don't count.</p>
       ) : (
       <>
-      <p className="text-muted small mb-2">All recorded games since {since}, including ones where someone was missing. Older results are on the Table.</p>
+      <p className="text-muted small mb-2">
+        {scope === 'all'
+          ? <>Every game on the scoreboard. Games before {since} count as games between the regulars (only the winner was kept); later ones are recorded individually, including guests and games where someone was missing.</>
+          : <>Only games recorded individually, since {since}, including ones where someone was missing.</>}
+      </p>
       <Table size="sm" responsive className="mb-4 all-games-stats">
         <thead><tr><th>Player</th><th className="text-center">Played</th><th className="text-center">Wins</th><th className="text-center">Win rate</th></tr></thead>
         <tbody>

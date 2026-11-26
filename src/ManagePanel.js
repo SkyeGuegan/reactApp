@@ -2,28 +2,32 @@ import React, { useState } from 'react';
 import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col, Badge } from 'react-bootstrap';
 import ScoreHistory from './ScoreHistory';
 import ArtworkDialog, { bggSearchUrl } from './ArtworkDialog';
+import EditPlayerDialog from './EditPlayerDialog';
 
 // Admin "Manage" card below the board, in three tabs:
 //   Add     — labelled forms for a new game / player (validated here).
-//   Roster  — games and players; a ⋯ menu per row with Delete (and, for
-//             games, Set artwork).
+//   Roster  — games and players; a ⋯ menu per row with Delete (players: Edit
+//             player; games: Set artwork, Scoring details). Admins see
+//             players' full names (playerNames: Map id → name) here.
 //   Score changes — the ScoreEvent ledger with Void (loads when first opened).
 //
-// Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials, core)
-// resolve true on success (so the input clears), onRequestDelete(kind, item)
+// Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials, core, name)
+// / onEditPlayer(player, { initials, name }) resolve true on success (so the input clears), onRequestDelete(kind, item)
 // opens App's confirmation modal, onSetArt(game, { bggId, imageUrl }) resolves
 // true on success.
 export default function ManagePanel({
   games, players, playerTotals,
-  onAddGame, onAddPlayer, onRequestDelete, onSetArt,
+  onAddGame, onAddPlayer, onEditPlayer, playerNames = new Map(), onRequestDelete, onSetArt, onOpenScoring,
   onVoid, onVoidPlay, plays, lastEvent, lastVoidedId,
 }) {
   const [newGame, setNewGame] = useState('');
   const [newPlayer, setNewPlayer] = useState('');
   const [newPlayerCore, setNewPlayerCore] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState('');
   const [gameError, setGameError] = useState('');
   const [playerError, setPlayerError] = useState('');
   const [artGame, setArtGame] = useState(null); // game whose artwork dialog is open
+  const [editPlayer, setEditPlayer] = useState(null); // player whose Edit dialog is open
 
   async function submitGame(e) {
     e.preventDefault();
@@ -40,17 +44,20 @@ export default function ManagePanel({
     e.preventDefault();
     const initials = newPlayer.trim();
     if (!initials) return;
-    if (players.some(p => p.initials.toLowerCase() === initials.toLowerCase())) {
-      setPlayerError(`${initials} is already a player.`);
+    const clash = players.find(p => p.initials.toLowerCase() === initials.toLowerCase());
+    if (clash) {
+      const who = playerNames.get(clash.id);
+      setPlayerError(`${initials} is already a player${who ? ` (${who})` : ''}. Use different initials, e.g. add a letter.`);
       return;
     }
-    if (await onAddPlayer(initials, newPlayerCore)) { setNewPlayer(''); setNewPlayerCore(false); }
+    if (await onAddPlayer(initials, newPlayerCore, newPlayerName)) { setNewPlayer(''); setNewPlayerCore(false); setNewPlayerName(''); }
   }
 
   const rosterRow = (kind, item, label, detail, badge) => (
     <ListGroup.Item key={item.id} className="d-flex align-items-center justify-content-between py-2">
       <span>
         {label}
+        {kind === 'player' && playerNames.get(item.id) && <span className="ms-2">{playerNames.get(item.id)}</span>}
         {badge}
         {detail && <span className="text-muted small ms-2">{detail}</span>}
       </span>
@@ -59,8 +66,14 @@ export default function ManagePanel({
           ⋯
         </Dropdown.Toggle>
         <Dropdown.Menu>
+          {kind === 'player' && onEditPlayer && (
+            <Dropdown.Item onClick={() => setEditPlayer(item)}>Edit player…</Dropdown.Item>
+          )}
           {kind === 'game' && onSetArt && (
             <Dropdown.Item onClick={() => setArtGame(item)}>Set artwork…</Dropdown.Item>
+          )}
+          {kind === 'game' && onOpenScoring && (
+            <Dropdown.Item onClick={() => onOpenScoring(item)}>Scoring details…</Dropdown.Item>
           )}
           <Dropdown.Item className="text-danger" onClick={() => onRequestDelete(kind, item)}>
             Delete {kind}…
@@ -121,6 +134,14 @@ export default function ManagePanel({
                   {playerError
                     ? <div className="text-danger small mt-1" role="alert">{playerError}</div>
                     : <Form.Text id="new-player-help">Up to 4 letters. New players are guests unless ticked below.</Form.Text>}
+                  <Form.Control
+                    className="mt-2"
+                    id="new-player-name"
+                    value={newPlayerName}
+                    onChange={e => setNewPlayerName(e.target.value)}
+                    placeholder="Full name (optional, admins only)"
+                    aria-label="Full name"
+                  />
                   <Form.Check
                     className="mt-2 small"
                     id="new-player-core"
@@ -164,6 +185,13 @@ export default function ManagePanel({
           <ScoreHistory onVoid={onVoid} onVoidPlay={onVoidPlay} plays={plays} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
         </Tab>
       </Tabs>
+      <EditPlayerDialog
+        player={editPlayer}
+        players={players}
+        playerNames={playerNames}
+        onHide={() => setEditPlayer(null)}
+        onSave={(info) => onEditPlayer(editPlayer, info)}
+      />
       <ArtworkDialog game={artGame} onHide={() => setArtGame(null)} onSave={(art) => onSetArt(artGame, art)} />
     </section>
   );

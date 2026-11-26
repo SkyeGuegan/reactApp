@@ -3,13 +3,15 @@ import { Table, Badge, Button } from 'react-bootstrap';
 import TrendsChart from './TrendsChart';
 import { gameStandings, playsForGame, fmtPercent } from './gameStats';
 import { fmtWins } from './plays';
-
 import { fmtPlayDate } from './dates';
+import { fieldsOf, detailsOf, scoringStats } from './scoring';
 
 // One game's page: box art + BoardGameGeek link, standings with win rates,
-// wins over time for this game, and its recorded games. Admins also get
-// "Record a game" (this game preselected) and "Set artwork".
-export default function GamePage({ game, corePlayers, players, gameScores, plays, played, isAdmin, onRecord, onSetArt }) {
+// optional scoring stats (best score, average winning score, faction win
+// rates), wins over time for this game, and its recorded games with any
+// details. Admins also get "Record a game" (this game preselected), "Set
+// artwork" and "Scoring details".
+export default function GamePage({ game, corePlayers, players, gameScores, plays, played, isAdmin, onRecord, onSetArt, onSetScoring }) {
   const [artFailed, setArtFailed] = useState(false);
   useEffect(() => setArtFailed(false), [game.imageUrl]);
   useEffect(() => {
@@ -26,6 +28,18 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
   const byId = new Map(players.map(p => [p.id, p.initials]));
   const name = (id) => byId.get(id) || '?';
   const maxWins = Math.max(1, ...rows.map(r => r.wins));
+  const earlier = Math.round(game.baselinePlays || 0);
+
+  const fields = fieldsOf(game);
+  const stats = scoringStats(game, plays);
+  const hasScoringData = stats.some(s => (s.type === 'number' ? s.best : s.rows.length));
+
+  // "SG (Witches, 142)" — a player's initials with whatever details were noted.
+  const withDetails = (play, id) => {
+    const row = detailsOf(play)[id];
+    const bits = row ? fields.map(f => row[f.key]).filter(v => v !== undefined && v !== '') : [];
+    return bits.length ? `${name(id)} (${bits.join(', ')})` : name(id);
+  };
 
   return (
     <div className="game-page text-start">
@@ -49,6 +63,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
             <div className="d-flex gap-2 mt-3 flex-wrap">
               <Button size="sm" variant="dark" onClick={onRecord}>＋ Record a game</Button>
               <Button size="sm" variant="outline-secondary" onClick={onSetArt}>Set artwork…</Button>
+              <Button size="sm" variant="outline-secondary" onClick={onSetScoring}>Scoring details…</Button>
             </div>
           )}
         </div>
@@ -78,20 +93,64 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
         {hasGuests && ' Guests count only individually recorded games.'}
       </p>
 
+      {fields.length > 0 && (
+        <>
+          <h3 className="manage-subtitle mt-4">Scores</h3>
+          {!hasScoringData ? (
+            <p className="text-muted small">
+              No {fields.map(f => f.label.toLowerCase()).join(' or ')} noted yet. They're optional when recording a game.
+            </p>
+          ) : (
+            <div className="scoring-stats">
+              {stats.map(s => (s.type === 'number' ? (
+                s.best && (
+                  <div key={s.field.key} className="score-stat">
+                    <div><span className="score-stat-label">Best {s.field.label.toLowerCase()}</span>
+                      <span className="score-stat-value">{s.best.value}</span>
+                      <span className="text-muted small"> by {name(s.best.playerId)}, {fmtDay(s.best.playedAt)}</span></div>
+                    {s.avgWin != null && (
+                      <div><span className="score-stat-label">Average winning {s.field.label.toLowerCase()}</span>
+                        <span className="score-stat-value">{Math.round(s.avgWin * 10) / 10}</span>
+                        <span className="text-muted small"> over {s.games} {s.games === 1 ? 'game' : 'games'}</span></div>
+                    )}
+                  </div>
+                )
+              ) : (
+                s.rows.length > 0 && (
+                  <Table key={s.field.key} size="sm" className="small mb-2">
+                    <thead><tr><th>{s.field.label}</th><th className="text-center">Played</th><th className="text-center">Wins</th><th className="text-center">Win rate</th></tr></thead>
+                    <tbody>
+                      {s.rows.map(r => (
+                        <tr key={r.value}>
+                          <td>{r.value}</td>
+                          <td className="text-center">{r.played}</td>
+                          <td className="text-center">{fmtWins(r.wins)}</td>
+                          <td className="text-center">{fmtPercent(r.wins / r.played)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )
+              )))}
+            </div>
+          )}
+        </>
+      )}
+
       <h3 className="manage-subtitle mt-4">Wins over time</h3>
       <TrendsChart gameId={game.id} exactDates={isAdmin} />
 
       <h3 className="manage-subtitle mt-4">Recent games</h3>
       {recent.length === 0 ? (
-        <p className="text-muted small">No games recorded individually yet — results from before Nov 2026 are in the totals above.</p>
+        <p className="text-muted small">No games recorded individually yet.</p>
       ) : (
-        <Table size="sm" responsive className="small">
+        <Table size="sm" responsive className="small mb-1">
           <thead><tr><th>Date</th><th>Players</th><th>Won</th><th /></tr></thead>
           <tbody>
             {recent.map(p => (
               <tr key={p.id}>
                 <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
-                <td>{p.playerIds.map(name).join(', ')}</td>
+                <td>{p.playerIds.map(id => withDetails(p, id)).join(', ')}</td>
                 <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
                 <td className="text-end">
                   {p.test && <Badge bg="secondary">test</Badge>}
@@ -101,6 +160,11 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
             ))}
           </tbody>
         </Table>
+      )}
+      {earlier > 0 && (
+        <p className="text-muted small">
+          Plus {earlier} earlier {earlier === 1 ? 'game' : 'games'} between {corePlayers.map(p => p.initials).join(', ')} from before games were recorded individually — only the winner was kept, and they're included in the standings above.
+        </p>
       )}
 
       {game.imageUrl && <p className="board-credit mb-0">Box art from <a href="https://boardgamegeek.com" target="_blank" rel="noopener noreferrer">BoardGameGeek</a></p>}
