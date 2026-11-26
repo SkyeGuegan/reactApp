@@ -115,3 +115,11 @@ export function scoringStats(game, plays) {
     return { field: f, type: 'text', rows };
   });
 }
+
+// "SG (Witches, 142)": a player's label plus whatever details were noted for
+// them in this play, in the game's field order. Just the label if none.
+export function withDetails(play, game, playerId, label) {
+  const row = detailsOf(play)[playerId];
+  const bits = row ? fieldsOf(game).map(f => row[f.key]).filter(v => v !== undefined && v !== null && v !== '') : [];
+  return bits.length ? `${label} (${bits.join(', ')})` : label;
+}

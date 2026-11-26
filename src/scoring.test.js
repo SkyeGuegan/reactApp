@@ -1,4 +1,4 @@
-import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, scoringStats, PRESETS } from './scoring';
+import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, scoringStats, withDetails, PRESETS } from './scoring';
 
 test('parseJson accepts strings, objects and junk', () => {
   expect(parseJson('[1,2]', [])).toEqual([1, 2]);
@@ -43,4 +43,12 @@ test('scoringStats: best score, average winning score, and faction win rates', (
   expect(points.best).toEqual({ value: 150, playerId: 'ni', playedAt: '2026-11-08' });
   expect(points.avgWin).toBe(145);
   expect(faction.rows.map(r => [r.value, r.played, r.wins])).toEqual([['Witches', 2, 1], ['Giants', 1, 1], ['Nomads', 1, 0]]);
+});
+
+test('withDetails labels a player with their noted details, in field order', () => {
+  const game = { scoreFields: JSON.stringify([{ key: 'faction', label: 'Faction', type: 'text' }, { key: 'points', label: 'Points', type: 'number' }]) };
+  const play = { details: JSON.stringify({ a: { points: 142, faction: 'Witches' }, b: {} }) };
+  expect(withDetails(play, game, 'a', 'SG')).toBe('SG (Witches, 142)');
+  expect(withDetails(play, game, 'b', 'MG')).toBe('MG');
+  expect(withDetails({ details: null }, undefined, 'a', 'SG')).toBe('SG');
 });

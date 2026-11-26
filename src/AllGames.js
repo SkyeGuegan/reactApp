@@ -3,6 +3,7 @@ import { Table, Badge, Button, Modal, ButtonGroup } from 'react-bootstrap';
 import { everyoneStats, allTimeStats, fmtWins } from './plays';
 
 import { fmtPlayDate } from './dates';
+import { withDetails } from './scoring';
 const PAGE = 20;
 
 // What voiding a game does, in words, for the confirmation. Only counted games
@@ -21,7 +22,8 @@ export function voidEffect(play, players) {
 // main table (someone missing) and guests' results.
 //   - Everyone: games played / wins / win rate per player, either All time
 //     (earlier history counts as games between the regulars) or Recorded games.
-//   - Recent games: newest first, with who played and who won.
+//   - Recent games: newest first, with who played (plus any scoring details,
+//     e.g. "SG (10)") and who won.
 // Test plays (hidden test player) are shown to admins only, labelled.
 // onVoid(play) is passed for admins; voiding asks for confirmation here.
 export default function AllGames({ plays, players, isAdmin, onVoid, games = [], gameScores = [] }) {
@@ -32,6 +34,7 @@ export default function AllGames({ plays, players, isAdmin, onVoid, games = [], 
 
   const byId = new Map(players.map(p => [p.id, p]));
   const name = (id) => (byId.get(id) ? byId.get(id).initials : '?');
+  const gameById = new Map(games.map(g => [g.id, g]));
   const visiblePlays = plays
     .filter(p => !p.voided && (isAdmin || !p.test))
     .sort((a, b) => (a.playedAt < b.playedAt ? 1 : a.playedAt > b.playedAt ? -1 : 0));
@@ -94,7 +97,7 @@ export default function AllGames({ plays, players, isAdmin, onVoid, games = [], 
             <tr key={p.id}>
               <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
               <td>{p.gameName || '?'}</td>
-              <td>{p.playerIds.map(name).join(', ')}</td>
+              <td>{p.playerIds.map(id => withDetails(p, gameById.get(p.gameId), id, name(id))).join(', ')}</td>
               <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
               <td className="text-end text-nowrap">
                 {p.test && <Badge bg="secondary" className="me-1">test</Badge>}

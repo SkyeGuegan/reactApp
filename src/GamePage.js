@@ -4,7 +4,7 @@ import TrendsChart from './TrendsChart';
 import { gameStandings, playsForGame, fmtPercent } from './gameStats';
 import { fmtWins } from './plays';
 import { fmtPlayDate } from './dates';
-import { fieldsOf, detailsOf, scoringStats } from './scoring';
+import { fieldsOf, scoringStats, withDetails as detailLabel } from './scoring';
 
 // One game's page: box art + BoardGameGeek link, standings with win rates,
 // optional scoring stats (best score, average winning score, faction win
@@ -35,11 +35,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
   const hasScoringData = stats.some(s => (s.type === 'number' ? s.best : s.rows.length));
 
   // "SG (Witches, 142)" — a player's initials with whatever details were noted.
-  const withDetails = (play, id) => {
-    const row = detailsOf(play)[id];
-    const bits = row ? fields.map(f => row[f.key]).filter(v => v !== undefined && v !== '') : [];
-    return bits.length ? `${name(id)} (${bits.join(', ')})` : name(id);
-  };
+  const withDetails = (play, id) => detailLabel(play, game, id, name(id));
 
   return (
     <div className="game-page text-start">
