@@ -1,4 +1,4 @@
-import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, scoringStats, withDetails, PRESETS } from './scoring';
+import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, bestPlayers, winnerRuleLabel, scoringStats, setupLabel, setupStats, withDetails, suggestedFor, optionsOf, GAME_KEY, SUGGESTED, PRESETS } from './scoring';
 
 test('parseJson accepts strings, objects and junk', () => {
   expect(parseJson('[1,2]', [])).toEqual([1, 2]);
@@ -51,4 +51,61 @@ test('withDetails labels a player with their noted details, in field order', () 
   expect(withDetails(play, game, 'a', 'SG')).toBe('SG (Witches, 142)');
   expect(withDetails(play, game, 'b', 'MG')).toBe('MG');
   expect(withDetails({ details: null }, undefined, 'a', 'SG')).toBe('SG');
+});
+
+const catan = { id: 'c', name: 'Settlers of Catan', scoreFields: JSON.stringify(SUGGESTED['settlers of catan']) };
+
+test('cleanDetails keeps game-level picks under _game, as a list for multi fields', () => {
+  const fields = SUGGESTED['settlers of catan'];
+  const raw = { a: { points: '13' }, [GAME_KEY]: { expansions: ['Seafarers', ' ', 'Cities & Knights'] } };
+  expect(cleanDetails(raw, fields, ['a'])).toEqual({ a: { points: 13 }, _game: { expansions: ['Seafarers', 'Cities & Knights'] } });
+  expect(cleanDetails({ [GAME_KEY]: { expansions: [] } }, fields, ['a'])).toEqual({});
+});
+
+test('bestPlayers: lowest wins, and Phase 10 compares phase then fewest points', () => {
+  const hearts = SUGGESTED.hearts;
+  expect(bestPlayers({ a: { points: 40 }, b: { points: 12 }, c: {} }, hearts, ['a', 'b', 'c'])).toEqual(['b']);
+  const phase = SUGGESTED.phase10;
+  const d = { a: { phase: 10, points: 120 }, b: { phase: 10, points: 85 }, c: { phase: 9, points: 5 } };
+  expect(bestPlayers(d, phase, ['a', 'b', 'c'])).toEqual(['b']);
+  expect(winnerRuleLabel(phase)).toBe('highest phase reached, then lowest points');
+  expect(topScorers({ a: { points: 3 }, b: { points: 1 } }, 'points', ['a', 'b'], true)).toEqual(['b']);
+});
+
+test('lowest-wins stats pick the lowest as best', () => {
+  const game = { id: 'h', scoreFields: JSON.stringify(SUGGESTED.hearts) };
+  const plays = [{ gameId: 'h', winnerIds: ['b'], playedAt: '2026-11-01', details: { a: { points: 60 }, b: { points: 9 } } }];
+  expect(scoringStats(game, plays)[0].best).toMatchObject({ value: 9, playerId: 'b' });
+});
+
+test('setups: label, base-game default, and stats per expansion mix', () => {
+  const p = (exp, winner, pts) => ({ gameId: 'c', winnerIds: [winner], playedAt: '2026-11-01',
+    details: JSON.stringify({ [winner]: { points: pts }, ...(exp ? { _game: { expansions: exp } } : {}) }) });
+  const plays = [p(['Cities & Knights'], 'a', 13), p(['Cities & Knights'], 'b', 14), p(null, 'a', 10), { ...p(null, 'a', 10), voided: true }];
+  expect(setupLabel(plays[0], catan)).toBe('Cities & Knights');
+  expect(setupLabel(plays[2], catan)).toBe('Base game');
+  const s = setupStats(catan, plays);
+  expect(s.map(x => [x.setup, x.games])).toEqual([['Cities & Knights', 2], ['Base game', 1]]);
+  expect(s[0].best.value).toBe(14);
+  expect(s[0].avgWin).toBe(13.5);
+  expect(s[0].wins.get('a')).toBe(1);
+  expect(setupStats({ id: 'x', scoreFields: JSON.stringify(PRESETS.points) }, plays)).toEqual([]);
+});
+
+test('withDetails ignores game-level details; options can carry art', () => {
+  const play = { details: { a: { points: 13 }, _game: { expansions: ['Seafarers'] } } };
+  expect(withDetails(play, catan, 'a', 'SG')).toBe('SG (13)');
+  expect(optionsOf({ options: ['A', { name: 'B', imageUrl: 'x' }, { nope: 1 }] })).toEqual([{ name: 'A' }, { name: 'B', imageUrl: 'x' }]);
+  expect(suggestedFor({ name: 'Hearts ' })).toBe(SUGGESTED.hearts);
+  expect(suggestedFor({ name: 'Unknown' })).toBeNull();
+});
+
+test('setupStats counts every game, not just ones with points noted', () => {
+  const plays = [
+    { gameId: 'c', winnerIds: ['a'], playedAt: '2026-11-01', details: JSON.stringify({ a: { points: 10 } }) },
+    { gameId: 'c', winnerIds: ['a'], playedAt: '2026-11-02', details: null },
+  ];
+  const [base] = setupStats(catan, plays);
+  expect(base).toMatchObject({ setup: 'Base game', games: 2, avgWin: 10 });
+  expect(base.wins.get('a')).toBe(2);
 });

@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RecordPlayDialog from './RecordPlayDialog';
 import ScoringFieldsDialog from './ScoringFieldsDialog';
 import GamePage from './GamePage';
-import { PRESETS } from './scoring';
+import { PRESETS, SUGGESTED } from './scoring';
 
 jest.mock('./TrendsChart', () => () => null); // the chart loads data; not under test here
 
@@ -53,4 +53,44 @@ test('Game page: scores, faction win rates, details in recent games, and the ear
   expect(screen.getByText('Witches')).toBeInTheDocument();
   expect(screen.getByText(/SG \(Witches, 142\), MG, NI \(Nomads, 120\)/)).toBeInTheDocument();
   expect(screen.getByText(/Plus 21 earlier games between SG, MG, NI/)).toBeInTheDocument();
+});
+
+const catan = { id: 'c', name: 'Settlers of Catan', baselinePlays: 60, scoreFields: JSON.stringify(SUGGESTED['settlers of catan']) };
+
+test('Record a game: Catan expansions are picked once for the game', async () => {
+  const onSave = jest.fn(() => Promise.resolve(true));
+  render(<RecordPlayDialog show onHide={() => {}} games={[catan]} players={players} onSave={onSave} onAddGuest={() => {}} initialGameId="c" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cities & Knights' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Seafarers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Seafarers' })); // toggled back off
+  expect(screen.getByRole('button', { name: 'Cities & Knights' })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.change(screen.getByLabelText('Victory points for MG'), { target: { value: '13' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Set winner from highest victory points' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save game' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  expect(onSave.mock.calls[0][0].details).toEqual({ mg: { points: 13 }, _game: { expansions: ['Cities & Knights'] } });
+  expect(onSave.mock.calls[0][0].winnerIds).toEqual(['mg']);
+});
+
+test('Scoring details dialog: "Suggested" sets up Catan with expansions', async () => {
+  const onSave = jest.fn(() => Promise.resolve(true));
+  render(<ScoringFieldsDialog game={{ id: 'c', name: 'Settlers of Catan' }} onHide={() => {}} onSave={onSave} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Suggested for Settlers of Catan' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(SUGGESTED['settlers of catan']));
+});
+
+test('Game page: Catan setups table and expansion tag on recent games', () => {
+  const plays = [
+    { id: 'p1', gameId: 'c', playedAt: '2026-11-20T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['sg'], counted: true,
+      details: JSON.stringify({ sg: { points: 13 }, _game: { expansions: ['Cities & Knights'] } }) },
+    { id: 'p2', gameId: 'c', playedAt: '2026-11-21T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['ni'], counted: true,
+      details: JSON.stringify({ ni: { points: 10 } }) },
+  ];
+  render(<GamePage game={catan} corePlayers={players} players={players} gameScores={[]} plays={plays} played={62} isAdmin={false}
+    onRecord={() => {}} onSetArt={() => {}} onSetScoring={() => {}} />);
+  expect(screen.getByRole('columnheader', { name: 'Setup' })).toBeInTheDocument();
+  expect(screen.getAllByText('Cities & Knights').length).toBe(2); // setups table + recent game tag
+  expect(screen.getByText('Base game')).toBeInTheDocument();    // setups table only
+  expect(screen.getByText('SG 1')).toBeInTheDocument();
 });

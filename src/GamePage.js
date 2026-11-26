@@ -4,7 +4,8 @@ import TrendsChart from './TrendsChart';
 import { gameStandings, playsForGame, fmtPercent } from './gameStats';
 import { fmtWins } from './plays';
 import { fmtPlayDate } from './dates';
-import { fieldsOf, scoringStats, withDetails as detailLabel } from './scoring';
+import { fieldsOf, scoringStats, setupStats, withDetails as detailLabel } from './scoring';
+import SetupTag from './SetupTag';
 
 // One game's page: box art + BoardGameGeek link, standings with win rates,
 // optional scoring stats (best score, average winning score, faction win
@@ -32,7 +33,10 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
 
   const fields = fieldsOf(game);
   const stats = scoringStats(game, plays);
-  const hasScoringData = stats.some(s => (s.type === 'number' ? s.best : s.rows.length));
+  const setups = setupStats(game, plays);
+  const hasScoringData = stats.some(s => (s.type === 'number' ? s.best : s.rows.length)) || setups.length > 0;
+  // "SG 2, NI 1" — who has won with a setup, most first.
+  const winsText = (wins) => [...wins.entries()].sort((a, b) => b[1] - a[1]).map(([id, w]) => `${name(id)} ${fmtWins(w)}`).join(', ');
 
   // "SG (Witches, 142)" — a player's initials with whatever details were noted.
   const withDetails = (play, id) => detailLabel(play, game, id, name(id));
@@ -101,7 +105,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
               {stats.map(s => (s.type === 'number' ? (
                 s.best && (
                   <div key={s.field.key} className="score-stat">
-                    <div><span className="score-stat-label">Best {s.field.label.toLowerCase()}</span>
+                    <div><span className="score-stat-label">Best {s.field.label.toLowerCase()}{s.field.lowWins ? ' (lowest)' : ''}</span>
                       <span className="score-stat-value">{s.best.value}</span>
                       <span className="text-muted small"> by {name(s.best.playerId)}, {fmtDay(s.best.playedAt)}</span></div>
                     {s.avgWin != null && (
@@ -128,6 +132,33 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
                   </Table>
                 )
               )))}
+              {setups.length > 0 && (
+                <Table size="sm" responsive className="small mb-2">
+                  <thead><tr>
+                    <th>Setup</th><th className="text-center">Games</th>
+                    {setups[0].field && <><th className="text-center">Best</th><th className="text-center">Avg winning</th></>}
+                    <th>Wins</th>
+                  </tr></thead>
+                  <tbody>
+                    {setups.map(s => (
+                      <tr key={s.setup}>
+                        <td>
+                          {s.options.filter(o => o.imageUrl).map(o => (
+                            <img key={o.name} className="setup-thumb" src={o.imageUrl} alt="" title={o.name} referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                          ))}
+                          {s.setup}
+                        </td>
+                        <td className="text-center">{s.games}</td>
+                        {s.field && <>
+                          <td className="text-center">{s.best ? s.best.value : '—'}</td>
+                          <td className="text-center">{s.avgWin != null ? Math.round(s.avgWin * 10) / 10 : '—'}</td>
+                        </>}
+                        <td>{winsText(s.wins)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </div>
           )}
         </>
@@ -146,7 +177,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
             {recent.map(p => (
               <tr key={p.id}>
                 <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
-                <td>{p.playerIds.map(id => withDetails(p, id)).join(', ')}</td>
+                <td>{p.playerIds.map(id => withDetails(p, id)).join(', ')}<div><SetupTag play={p} game={game} /></div></td>
                 <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
                 <td className="text-end">
                   {p.test && <Badge bg="secondary">test</Badge>}

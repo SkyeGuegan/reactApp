@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Button, Badge } from 'react-bootstrap';
 import { corePlayers, classifyPlay, winShares, fmtWins } from './plays';
-import { fieldsOf, cleanDetails, topScorers } from './scoring';
+import { fieldsOf, cleanDetails, bestPlayers, winnerRuleLabel, optionsOf, GAME_KEY } from './scoring';
 
 const todayLocal = () => {
   const d = new Date();
@@ -19,8 +19,9 @@ const toPlayedAt = (ymd) => {
 // Admin dialog for recording one game: which game, when, who played, who won.
 // Core players start ticked. Guests can be added inline (saved as non-core
 // players). The footer explains whether the game will count on the main table.
-// If the game collects scoring details (points, faction…), an optional grid
-// asks for them per player.
+// If the game collects scoring details, optional inputs ask for them: game-level
+// ones first (e.g. Catan expansions, as tappable covers), then a grid per player
+// (points, faction…).
 // onSave({ gameId, playedAt, playerIds, winnerIds, details, allPlayers }) resolves
 // truthy on success; onAddGuest(initials, name) resolves to the new player.
 // playerNames (Map id → full name, admin-only) shows on hover and in clashes.
@@ -98,8 +99,15 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
 
   const selectedGame = games.find(g => g.id === gameId) || null;
   const fields = fieldsOf(selectedGame);
-  const numberField = fields.find(fl => fl.type === 'number');
+  const pFields = fields.filter(fl => fl.scope !== 'game');
+  const gFields = fields.filter(fl => fl.scope === 'game');
+  const hasNumber = pFields.some(fl => fl.type === 'number');
   const setDetail = (pid, key, value) => setRawDetails(prev => ({ ...prev, [pid]: { ...(prev[pid] || {}), [key]: value } }));
+  const gameValue = (key) => (rawDetails[GAME_KEY] || {})[key];
+  const togglePick = (key, name) => {
+    const cur = [].concat(gameValue(key) || []);
+    setDetail(GAME_KEY, key, cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]);
+  };
 
   const playerIds = ordered.filter(p => playing.has(p.id)).map(p => p.id);
   const winnerIds = playerIds.filter(id => winners.has(id));
@@ -162,7 +170,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
           <legend className="fs-6 fw-semibold mb-1">Who played</legend>
           <div>{core.map(playerCheck)}</div>
           {others.length > 0 && <div className="mt-1">{others.map(playerCheck)}</div>}
-          <div className="d-flex gap-2 mt-2">
+          <div className="d-flex flex-wrap gap-2 mt-2">
             <Form.Control
               size="sm"
               value={guest}
@@ -187,24 +195,65 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
           {guestError && <div className="text-danger small mt-1" role="alert">{guestError}</div>}
         </fieldset>
 
-        {fields.length > 0 && playerIds.length > 0 && (
+        {gFields.map(fl => {
+          const opts = optionsOf(fl);
+          return (
+            <fieldset key={fl.key} className="mb-3">
+              <legend className="fs-6 fw-semibold mb-1">{fl.label} <span className="fw-normal text-muted small">(optional{fl.multi && fl.emptyLabel ? `; none = ${fl.emptyLabel.toLowerCase()}` : ''})</span></legend>
+              {fl.multi && opts.length ? (
+                <div className="option-picks">
+                  {opts.map(o => {
+                    const on = [].concat(gameValue(fl.key) || []).includes(o.name);
+                    return (
+                      <button
+                        key={o.name}
+                        type="button"
+                        className={`option-pick ${on ? 'on' : ''}`}
+                        aria-pressed={on}
+                        onClick={() => togglePick(fl.key, o.name)}
+                      >
+                        {o.imageUrl && <img src={o.imageUrl} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display = 'none'; }} />}
+                        <span>{o.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  <Form.Control
+                    size="sm"
+                    type={fl.type === 'number' ? 'number' : 'text'}
+                    list={opts.length ? `opts-${fl.key}` : undefined}
+                    value={gameValue(fl.key) || ''}
+                    onChange={e => setDetail(GAME_KEY, fl.key, e.target.value)}
+                    aria-label={fl.label}
+                    style={{ maxWidth: 260 }}
+                  />
+                  {opts.length > 0 && <datalist id={`opts-${fl.key}`}>{opts.map(o => <option key={o.name} value={o.name} />)}</datalist>}
+                </>
+              )}
+            </fieldset>
+          );
+        })}
+
+        {pFields.length > 0 && playerIds.length > 0 && (
           <fieldset className="mb-3">
             <legend className="fs-6 fw-semibold mb-1">Details <span className="fw-normal text-muted small">(optional)</span></legend>
             <table className="details-grid">
               <thead>
-                <tr><th />{fields.map(fl => <th key={fl.key}>{fl.label}</th>)}</tr>
+                <tr><th />{pFields.map(fl => <th key={fl.key}>{fl.label}{fl.lowWins && <span className="fw-normal text-muted"> (low wins)</span>}</th>)}</tr>
               </thead>
               <tbody>
                 {ordered.filter(p => playing.has(p.id)).map(p => (
                   <tr key={p.id}>
                     <th scope="row">{p.initials}</th>
-                    {fields.map(fl => (
+                    {pFields.map(fl => (
                       <td key={fl.key}>
                         <Form.Control
                           size="sm"
                           type={fl.type === 'number' ? 'number' : 'text'}
                           inputMode={fl.type === 'number' ? 'decimal' : undefined}
-                          list={fl.options ? `opts-${fl.key}` : undefined}
+                          list={optionsOf(fl).length ? `opts-${fl.key}` : undefined}
                           value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
                           onChange={e => setDetail(p.id, fl.key, e.target.value)}
                           aria-label={`${fl.label} for ${p.initials}`}
@@ -215,17 +264,17 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                 ))}
               </tbody>
             </table>
-            {fields.filter(fl => fl.options).map(fl => (
-              <datalist key={fl.key} id={`opts-${fl.key}`}>{fl.options.map(o => <option key={o} value={o} />)}</datalist>
+            {pFields.filter(fl => optionsOf(fl).length).map(fl => (
+              <datalist key={fl.key} id={`opts-${fl.key}`}>{optionsOf(fl).map(o => <option key={o.name} value={o.name} />)}</datalist>
             ))}
-            {numberField && (
+            {hasNumber && (
               <Button
                 size="sm"
                 variant="link"
                 className="p-0 mt-1"
-                onClick={() => setWinners(new Set(topScorers(cleanDetails(rawDetails, fields, playerIds), numberField.key, playerIds)))}
+                onClick={() => setWinners(new Set(bestPlayers(cleanDetails(rawDetails, fields, playerIds), pFields, playerIds)))}
               >
-                Set winner from highest {numberField.label.toLowerCase()}
+                Set winner from {winnerRuleLabel(pFields)}
               </Button>
             )}
           </fieldset>

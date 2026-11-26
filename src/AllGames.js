@@ -4,6 +4,7 @@ import { everyoneStats, allTimeStats, fmtWins } from './plays';
 
 import { fmtPlayDate } from './dates';
 import { withDetails } from './scoring';
+import SetupTag from './SetupTag';
 const PAGE = 20;
 
 // What voiding a game does, in words, for the confirmation. Only counted games
@@ -96,7 +97,7 @@ export default function AllGames({ plays, players, isAdmin, onVoid, games = [], 
           {visiblePlays.slice(0, shown).map(p => (
             <tr key={p.id}>
               <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
-              <td>{p.gameName || '?'}</td>
+              <td>{p.gameName || '?'}<div><SetupTag play={p} game={gameById.get(p.gameId)} /></div></td>
               <td>{p.playerIds.map(id => withDetails(p, gameById.get(p.gameId), id, name(id))).join(', ')}</td>
               <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
               <td className="text-end text-nowrap">

@@ -594,3 +594,20 @@
 
 /* Scoring details dialog rows. */
 .scoring-field { padding: 6px 0; border-bottom: 1px solid var(--divider); }
+
+/* Record a game: game-level picks (e.g. Catan expansions) as tappable covers. */
+.option-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.option-pick {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 4px; border-radius: 8px; font-size: 0.85rem;
+  border: 1px solid var(--divider); background: var(--card-bg); color: var(--bs-body-color);
+}
+.option-pick img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
+.option-pick.on { border-color: var(--gold); background: var(--gold-soft-bg); color: var(--gold-soft-text); font-weight: 600; }
+.option-pick:not(:has(img)) { padding-left: 10px; }
+
+/* A play's setup (expansions…): small covers + name. */
+.setup-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.setup-tag img { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; }
+.option-art-btn img { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; vertical-align: -4px; }
+.setup-thumb { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; margin-right: 4px; vertical-align: -5px; }
