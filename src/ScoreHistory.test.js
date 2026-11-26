@@ -43,3 +43,13 @@ test('a manual change still voids on its own', async () => {
   await waitFor(() => expect(onVoid).toHaveBeenCalledWith(events[1]));
   expect(onVoidPlay).not.toHaveBeenCalled();
 });
+
+test('voided changes are hidden until "Show voided changes" is on', async () => {
+  mockEvents.push({ id: 'v1', gameName: 'Puerto Rico', playerInitials: 'SG', delta: 1, createdAt: '2026-11-24T22:00:00Z', recordedBy: 'sguegan', voided: true });
+  render(<ScoreHistory onVoid={jest.fn()} onVoidPlay={jest.fn()} plays={plays} />);
+  await screen.findByText('Hearts');
+  expect(screen.queryByText('Puerto Rico')).toBeNull();
+  fireEvent.click(screen.getByLabelText('Show voided changes (1)'));
+  expect(screen.getByText('Puerto Rico')).toBeInTheDocument();
+  mockEvents.pop();
+});

@@ -23,7 +23,7 @@ export const isGenerated = (e) => e.recordedBy === 'backfill' || e.recordedBy ==
 //     voids the whole game (onVoidPlay), so the game list and the scores never
 //     disagree.
 //   - Other changes void individually (onVoid reverses the score).
-//   - Generated history is hidden behind a toggle.
+//   - Generated history and voided changes are each hidden behind a switch.
 // Events load when this mounts (the Manage card's tab mounts it on first open);
 // `lastEvent` / `lastVoidedId` keep an open list in sync with changes elsewhere.
 export default function ScoreHistory({ onVoid, onVoidPlay, plays = [], lastEvent, lastVoidedId }) {
@@ -31,6 +31,7 @@ export default function ScoreHistory({ onVoid, onVoidPlay, plays = [], lastEvent
   const [error, setError] = useState('');
   const [shown, setShown] = useState(PAGE);
   const [showGenerated, setShowGenerated] = useState(false);
+  const [showVoided, setShowVoided] = useState(false);
   const [pending, setPending] = useState(null); // { event, play? } awaiting confirmation
   const [busy, setBusy] = useState(false);
 
@@ -61,7 +62,9 @@ export default function ScoreHistory({ onVoid, onVoidPlay, plays = [], lastEvent
   const playById = new Map(plays.map(p => [p.id, p]));
   const playOf = (e) => (e.playId ? playById.get(e.playId) : null);
   const generatedCount = events ? events.filter(isGenerated).length : 0;
-  const visible = events ? events.filter(e => showGenerated || !isGenerated(e)) : [];
+  // Voided count among the rows the generated switch would show.
+  const voidedCount = events ? events.filter(e => e.voided && (showGenerated || !isGenerated(e))).length : 0;
+  const visible = events ? events.filter(e => (showGenerated || !isGenerated(e)) && (showVoided || !e.voided)) : [];
 
   async function confirmVoid() {
     const { event, play } = pending;
@@ -100,19 +103,37 @@ export default function ScoreHistory({ onVoid, onVoidPlay, plays = [], lastEvent
           Refresh
         </Button>
       </div>
-      {events && generatedCount > 0 && (
-        <Form.Check
-          type="switch"
-          id="show-generated"
-          className="small mb-2"
-          label={`Show generated history (${generatedCount})`}
-          checked={showGenerated}
-          onChange={e => { setShowGenerated(e.target.checked); setShown(PAGE); }}
-        />
+      {events && (generatedCount > 0 || voidedCount > 0) && (
+        <div className="d-flex flex-wrap gap-3 mb-2">
+          {voidedCount > 0 && (
+            <Form.Check
+              type="switch"
+              id="show-voided"
+              className="small mb-0"
+              label={`Show voided changes (${voidedCount})`}
+              checked={showVoided}
+              onChange={e => { setShowVoided(e.target.checked); setShown(PAGE); }}
+            />
+          )}
+          {generatedCount > 0 && (
+            <Form.Check
+              type="switch"
+              id="show-generated"
+              className="small mb-0"
+              label={`Show generated history (${generatedCount})`}
+              checked={showGenerated}
+              onChange={e => { setShowGenerated(e.target.checked); setShown(PAGE); }}
+            />
+          )}
+        </div>
       )}
       {error && <div className="text-danger small mb-2">{error}</div>}
       {!events && !error && <Spinner animation="border" size="sm" role="status"><span className="visually-hidden">Loading...</span></Spinner>}
-      {events && visible.length === 0 && <span className="text-muted small">No score changes yet{generatedCount ? ' (apart from generated history)' : ''}.</span>}
+      {events && visible.length === 0 && (
+        <span className="text-muted small">
+          {generatedCount || voidedCount ? 'No score changes to show — switch on voided or generated changes above to see more.' : 'No score changes yet.'}
+        </span>
+      )}
       {visible.length > 0 && (
         <>
           <Table size="sm" responsive className="mb-1 small">
