@@ -1,0 +1,5 @@
+# The Amplify CLI rewrites files under amplify/ with LF line endings on every
+# `amplify push`. With core.autocrlf=true on Windows, Git would then flag them
+# as modified even though their content is unchanged. Declaring them LF keeps
+# `git status` clean.
+amplify/** text eol=lf
