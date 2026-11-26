@@ -3,7 +3,7 @@ import { Table, Badge, Button, Modal, ButtonGroup } from 'react-bootstrap';
 import { everyoneStats, allTimeStats, fmtWins } from './plays';
 
 import { fmtPlayDate } from './dates';
-import { withDetails } from './scoring';
+import { PlayerDetails } from './Swatch';
 import SetupTag from './SetupTag';
 const PAGE = 20;
 
@@ -98,11 +98,11 @@ export default function AllGames({ plays, players, isAdmin, onVoid, games = [], 
             <tr key={p.id}>
               <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
               <td>{p.gameName || '?'}<div><SetupTag play={p} game={gameById.get(p.gameId)} /></div></td>
-              <td>{p.playerIds.map(id => withDetails(p, gameById.get(p.gameId), id, name(id))).join(', ')}</td>
+              <td>{p.playerIds.map((id, i) => <React.Fragment key={id}>{i > 0 && ', '}<PlayerDetails play={p} game={gameById.get(p.gameId)} playerId={id} label={name(id)} /></React.Fragment>)}</td>
               <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
               <td className="text-end text-nowrap">
                 {p.test && <Badge bg="secondary" className="me-1">test</Badge>}
-                {!p.test && !p.counted && <Badge bg="light" text="dark" className="me-1" title="Not everyone at the table played, so it doesn't change the main table">not on table</Badge>}
+                {!p.test && !p.counted && <Badge bg="" className="badge-soft me-1" title="Not everyone at the table played, so it doesn't change the main table">not on table</Badge>}
                 {isAdmin && <Button variant="link" size="sm" className="text-danger p-0" onClick={() => setPending(p)}>void</Button>}
               </td>
             </tr>

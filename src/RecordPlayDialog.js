@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Button, Badge } from 'react-bootstrap';
 import { corePlayers, classifyPlay, winShares, fmtWins } from './plays';
-import { fieldsOf, cleanDetails, bestPlayers, winnerRuleLabel, optionsOf, GAME_KEY } from './scoring';
+import { fieldsOf, cleanDetails, bestPlayers, winnerRuleLabel, optionsOf, hasColors, takenChoices, GAME_KEY } from './scoring';
+import { ChoicePicker } from './Swatch';
 
 const todayLocal = () => {
   const d = new Date();
@@ -222,6 +223,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                         type="button"
                         className={`option-pick ${on ? 'on' : ''}`}
                         aria-pressed={on}
+                        aria-label={o.name}
                         onClick={() => togglePick(fl.key, o.name)}
                       >
                         {o.imageUrl && <img src={o.imageUrl} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display = 'none'; }} />}
@@ -262,7 +264,15 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                     <th scope="row">{p.initials}</th>
                     {pFields.map(fl => (
                       <td key={fl.key}>
-                        {fl.type === 'text' && optionsOf(fl).length ? (
+                        {fl.type === 'text' && hasColors(fl) ? (
+                          <ChoicePicker
+                            field={fl}
+                            value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
+                            onChange={v => setDetail(p.id, fl.key, v)}
+                            taken={takenChoices(fl, rawDetails, p.id, playerIds)}
+                            label={`${fl.label} for ${p.initials}`}
+                          />
+                        ) : fl.type === 'text' && optionsOf(fl).length ? (
                           <Form.Select
                             size="sm"
                             value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
@@ -270,7 +280,10 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                             aria-label={`${fl.label} for ${p.initials}`}
                           >
                             <option value="">—</option>
-                            {optionsOf(fl).map(o => <option key={o.name} value={o.name}>{o.name}</option>)}
+                            {optionsOf(fl).map(o => {
+                              const taken = takenChoices(fl, rawDetails, p.id, playerIds);
+                              return <option key={o.name} value={o.name} disabled={taken.has(o.name)}>{o.name}</option>;
+                            })}
                           </Form.Select>
                         ) : (
                           <Form.Control

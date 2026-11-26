@@ -155,7 +155,7 @@ export default function ScoreHistory({ onVoid, onVoidPlay, plays = [], lastEvent
                     <td className="d-none d-sm-table-cell">{isGenerated(e) ? <span className="text-muted">generated</span> : (e.recordedBy || '')}</td>
                     <td className="text-end">
                       {e.voided
-                        ? <Badge bg="light" text="dark">voided</Badge>
+                        ? <Badge bg="" className="badge-soft">voided</Badge>
                         : <Button variant="link" size="sm" className="text-danger p-0" onClick={() => askVoid(e)}>{play ? 'void game' : 'void'}</Button>}
                     </td>
                   </tr>

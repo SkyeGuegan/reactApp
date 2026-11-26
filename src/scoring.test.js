@@ -1,4 +1,4 @@
-import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, bestPlayers, winnerRuleLabel, scoringStats, setupLabel, setupStats, withDetails, suggestedFor, optionsOf, GAME_KEY, SUGGESTED, PRESETS } from './scoring';
+import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, bestPlayers, winnerRuleLabel, scoringStats, setupLabel, setupStats, withDetails, suggestedFor, takenChoices, optionsOf, GAME_KEY, SUGGESTED, PRESETS } from './scoring';
 
 test('parseJson accepts strings, objects and junk', () => {
   expect(parseJson('[1,2]', [])).toEqual([1, 2]);
@@ -98,6 +98,15 @@ test('withDetails ignores game-level details; options can carry art', () => {
   expect(optionsOf({ options: ['A', { name: 'B', imageUrl: 'x' }, { nope: 1 }] })).toEqual([{ name: 'A' }, { name: 'B', imageUrl: 'x' }]);
   expect(suggestedFor({ name: 'Hearts ' })).toBe(SUGGESTED.hearts);
   expect(suggestedFor({ name: 'Unknown' })).toBeNull();
+});
+
+test('takenChoices: Terra Mystica colours are one per player; Riverwalkers and Shapeshifters stand alone', () => {
+  const [faction] = SUGGESTED['terra mystica'];
+  const raw = { a: { faction: 'Witches' }, b: { faction: 'Shapeshifters' } };
+  expect([...takenChoices(faction, raw, 'c', ['a', 'b', 'c'])].sort()).toEqual(['Auren', 'Shapeshifters', 'Witches']);
+  expect(takenChoices(faction, raw, 'a', ['a', 'b', 'c']).has('Witches')).toBe(false); // your own pick stays available
+  expect(takenChoices({ ...faction, unique: false }, raw, 'c', ['a', 'b', 'c']).size).toBe(0);
+  expect(SUGGESTED['terra mystica'][0].options).toHaveLength(20);
 });
 
 test('setupStats counts every game, not just ones with points noted', () => {

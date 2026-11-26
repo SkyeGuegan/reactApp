@@ -7,11 +7,13 @@ jest.mock('./api', () => ({ fetchAllPages: jest.fn(() => Promise.resolve([])) })
 
 const players = [{ id: 'p1', initials: 'SG', core: true }, { id: 'p2', initials: 'NI', core: true }];
 const games = [{ id: 'g1', name: 'Catan' }];
-const playerTotals = new Map([['p1', 5], ['p2', 1]]);
+// SG won 5 Catan cells and NI 1; one recorded game between them (SG won).
+const gameScores = [{ gameId: 'g1', playerId: 'p1', score: 5 }, { gameId: 'g1', playerId: 'p2', score: 1 }];
+const plays = [{ id: 'x', gameId: 'g1', playerIds: ['p1', 'p2'], winnerIds: ['p1'], counted: true }];
 
 function setup(overrides = {}) {
   const props = {
-    games, players, playerTotals,
+    games, players, gameScores, plays,
     onAddGame: jest.fn(() => Promise.resolve(true)),
     onAddPlayer: jest.fn(() => Promise.resolve(true)),
     onRequestDelete: jest.fn(),
@@ -49,8 +51,8 @@ test('uppercases player initials as you type', () => {
 test('roster lists players with wins and deletes via the menu', async () => {
   const props = setup();
   fireEvent.click(screen.getByRole('tab', { name: 'Roster' }));
-  expect(screen.getByText('5 wins')).toBeInTheDocument();
-  expect(screen.getByText('1 win')).toBeInTheDocument();
+  expect(screen.getByText('5 wins · 1 game')).toBeInTheDocument();
+  expect(screen.getByText('1 win · 1 game')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Actions for Catan' }));
   fireEvent.click(await screen.findByText('Delete game…'));
   expect(props.onRequestDelete).toHaveBeenCalledWith('game', games[0]);
@@ -68,11 +70,16 @@ test('new players are guests unless "Regular player" is ticked', async () => {
   await waitFor(() => expect(props.onAddPlayer).toHaveBeenCalledWith('CD', true, 'Cara Dune'));
 });
 
-test('roster labels guests and the test player', () => {
-  setup({ players: [...players, { id: 'g', initials: 'AB' }, { id: 't', initials: 'TEST', hidden: true }] });
+test('roster groups regulars, guests and the test player, with full names', () => {
+  setup({
+    players: [...players, { id: 'g', initials: 'AB' }, { id: 't', initials: 'TEST', hidden: true }],
+    playerNames: new Map([['p1', 'Skye Guegan']]),
+  });
   fireEvent.click(screen.getByRole('tab', { name: 'Roster' }));
-  expect(screen.getByText('guest')).toBeInTheDocument();
-  expect(screen.getByText('test')).toBeInTheDocument();
+  expect(screen.getAllByText(/^(Regulars|Guests|Test)$/).map(e => e.textContent)).toEqual(['Regulars', 'Guests', 'Test']);
+  expect(screen.getByText('Skye Guegan')).toBeInTheDocument();
+  expect(screen.getByText('no games yet')).toBeInTheDocument();
+  expect(screen.getByText('admins only')).toBeInTheDocument();
 });
 
 test('typing a new game name offers a BoardGameGeek search link', () => {

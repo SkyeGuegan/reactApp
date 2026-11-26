@@ -425,7 +425,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
       <ManagePanel
         games={sortedGames}
         players={rosterPlayers}
-        playerTotals={playerTotals}
+        gameScores={gameScores}
         onAddGame={handleAddGame}
         onAddPlayer={handleAddPlayer}
         onEditPlayer={handleEditPlayer}

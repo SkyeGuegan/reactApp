@@ -607,7 +607,51 @@
 .option-pick:not(:has(img)) { padding-left: 10px; }
 
 /* A play's setup (expansions…): small covers + name. */
-.setup-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--muted); }
-.setup-tag img { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; }
+.setup-tag { display: block; font-size: 0.8rem; line-height: 1.35; color: var(--muted); }
+.setup-tag img { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; margin-right: 3px; vertical-align: -4px; }
 .option-art-btn img { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; vertical-align: -4px; }
 .setup-thumb { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; margin-right: 4px; vertical-align: -5px; }
+
+/* Roster players: initials column, full name, stats right-aligned, ⋯ menu. */
+.roster-group + .roster-group { margin-top: 12px; }
+.roster-group-title {
+  font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted); margin: 0 0 4px 2px;
+}
+.list-group-item.roster-player { display: flex; align-items: center; gap: 12px; padding-top: 6px; padding-bottom: 6px; }
+.roster-initials { flex: 0 0 3.2em; font-weight: 700; letter-spacing: 0.02em; }
+.roster-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-stats { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.roster-player .roster-menu.btn-link { --bs-btn-color: var(--bs-body-color); --bs-btn-hover-color: var(--bs-body-color); --bs-btn-active-color: var(--bs-body-color); color: var(--bs-body-color); opacity: 0.75; padding: 6px 12px; margin-right: -8px; }
+.roster-player .roster-menu.btn-link:hover, .roster-player .roster-menu.btn-link:focus-visible { opacity: 1; background: var(--soft-bg); border-radius: 6px; }
+@media (max-width: 420px) {
+  .list-group-item.roster-player { flex-wrap: wrap; row-gap: 0; }
+  .roster-stats { order: 3; flex-basis: 100%; text-align: left; padding-left: calc(3.2em + 12px); }
+}
+
+/* Colour dot for a choice (Terra Mystica terrain, Root faction colour). */
+.swatch {
+  display: inline-block; width: 0.8em; height: 0.8em; border-radius: 50%;
+  margin-right: 0.35em; vertical-align: -0.05em; flex: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+[data-bs-theme="dark"] .swatch { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45); }
+
+/* Record a game: colour-chip picker for factions. */
+.choice-picker { width: 100%; }
+.choice-toggle.btn { width: 100%; display: flex; align-items: center; text-align: left; white-space: nowrap; overflow: hidden; }
+.choice-toggle .choice-name { overflow: hidden; text-overflow: ellipsis; }
+.choice-toggle.dropdown-toggle::after { margin-left: auto; }
+.choice-menu { padding: 6px; max-height: 70vh; overflow-y: auto; }
+.choice-grid { display: grid; grid-template-columns: repeat(2, minmax(9.5em, 1fr)); gap: 2px 4px; }
+.choice-chip.dropdown-item { display: flex; align-items: center; border-radius: 6px; padding: 5px 8px; font-size: 0.9rem; white-space: nowrap; }
+.choice-chip.dropdown-item.active { background: var(--gold-soft-bg); color: var(--gold-soft-text); font-weight: 600; }
+.choice-chip.dropdown-item.disabled { opacity: 0.35; text-decoration: line-through; }
+.details-grid td:has(.choice-picker) { min-width: 10.5em; }
+/* Quiet status badge ("not on table", "voided"): readable without shouting. */
+.badge.badge-soft { background: var(--soft-bg); color: var(--soft-text); border: 1px solid var(--divider); font-weight: 600; }
+@media (max-width: 420px) {
+  .choice-menu { max-width: calc(100vw - 16px); }
+  .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .choice-chip.dropdown-item { font-size: 0.82rem; padding: 5px 6px; white-space: normal; }
+}

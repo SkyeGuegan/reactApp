@@ -7,7 +7,11 @@
 //     multi?: true,          // text with options: pick any number of them
 //     lowWins?: true,        // number: lower is better (Hearts, Formula D finish)
 //     emptyLabel?: string,   // game field: what nothing picked means ("Base game")
-//     options?: [string | { name, bggId?, imageUrl? }] }  // choices (a dropdown, or toggles when multi), with optional box art
+//     unique?: true,         // per-player choice: one player per colour/group (Terra Mystica terrains)
+//     options?: [string | { name, color?, group?, bggId?, imageUrl? }] }
+//       // choices (a dropdown, colour chips when they have colours, or toggles
+//       // when multi); color is a CSS colour or 'any'; group is what unique
+//       // compares (defaults to the name); bggId/imageUrl are box art
 // A play's `details` (AWSJSON) holds the values: per player under their id, and
 // game-level values under GAME_KEY:
 //   { [playerId]: { points: 10 }, _game: { expansions: ['Seafarers'] } }
@@ -40,10 +44,28 @@ export const playerDetailsOf = (play) => {
 };
 export const gameDetailsOf = (play) => detailsOf(play)[GAME_KEY] || {};
 
-// Options may be plain names or { name, bggId, imageUrl }.
+// Options may be plain names or { name, color, group, bggId, imageUrl }.
 export const optionsOf = (field) =>
-  (field.options || []).map(o => (typeof o === 'string' ? { name: o } : o)).filter(o => o && o.name);
+  ((field && field.options) || []).map(o => (typeof o === 'string' ? { name: o } : o)).filter(o => o && o.name);
 export const optionNames = (field) => optionsOf(field).map(o => o.name);
+export const optionFor = (field, name) => optionsOf(field).find(o => o.name === name) || null;
+export const hasColors = (field) => optionsOf(field).some(o => o.color);
+const groupOf = (o) => o.group || o.name;
+
+// For a unique field: the choices another player already has (by group), so
+// this player can't pick them. rawDetails: { [playerId]: { [key]: value } }.
+export function takenChoices(field, rawDetails, playerId, playerIds) {
+  if (!field.unique) return new Set();
+  const groups = new Set();
+  for (const id of playerIds) {
+    if (id === playerId) continue;
+    const v = rawDetails && rawDetails[id] && rawDetails[id][field.key];
+    if (!v) continue;
+    const o = optionFor(field, v);
+    groups.add(o ? groupOf(o) : v);
+  }
+  return new Set(optionsOf(field).filter(o => groups.has(groupOf(o))).map(o => o.name));
+}
 
 // "Victory points" -> "victory_points"; unique within the list.
 export function fieldKey(label, existing = []) {
@@ -53,14 +75,30 @@ export function fieldKey(label, existing = []) {
   return key;
 }
 
-// Terra Mystica factions: base game plus Fire & Ice (Acolytes, Dragonlords,
-// Ice Maidens, Riverwalkers, Shapeshifters, Yetis), alphabetical.
+// Terra Mystica factions in pairs by home terrain (its colour): base game plus
+// Fire & Ice (ice, volcano, and the two that choose any colour). Only one
+// player can take each colour, so the field is unique by group.
+const tm = (group, color, names) => names.map(name => ({ name, color, group }));
 export const TERRA_MYSTICA_FACTIONS = [
-  'Acolytes', 'Alchemists', 'Auren', 'Chaos Magicians', 'Cultists', 'Darklings', 'Dragonlords',
-  'Dwarves', 'Engineers', 'Fakirs', 'Giants', 'Halflings', 'Ice Maidens', 'Mermaids', 'Nomads',
-  'Riverwalkers', 'Shapeshifters', 'Swarmlings', 'Witches', 'Yetis',
+  ...tm('Plains', '#8b5a2b', ['Halflings', 'Cultists']),
+  ...tm('Swamp', '#262626', ['Alchemists', 'Darklings']),
+  ...tm('Lakes', '#2f6fd0', ['Mermaids', 'Swarmlings']),
+  ...tm('Forest', '#2e8b3d', ['Witches', 'Auren']),
+  ...tm('Mountains', '#8a9099', ['Dwarves', 'Engineers']),
+  ...tm('Wasteland', '#c7352b', ['Giants', 'Chaos Magicians']),
+  ...tm('Desert', '#e3b929', ['Fakirs', 'Nomads']),
+  ...tm('Ice', '#f2f5f8', ['Ice Maidens', 'Yetis']),
+  ...tm('Volcano', '#e8742a', ['Acolytes', 'Dragonlords']),
+  { name: 'Riverwalkers', color: 'any' },
+  { name: 'Shapeshifters', color: 'any' },
 ];
-export const ROOT_FACTIONS = ['Marquise de Cat', 'Eyrie Dynasties', 'Woodland Alliance', 'Vagabond'];
+// Root's base factions and their player colours; each faction once per game.
+export const ROOT_FACTIONS = [
+  { name: 'Marquise de Cat', color: '#e07b2a' },
+  { name: 'Eyrie Dynasties', color: '#2f6fd0' },
+  { name: 'Woodland Alliance', color: '#3a9d4a' },
+  { name: 'Vagabond', color: '#6b7078' },
+];
 // The Catan expansions we own.
 export const CATAN_EXPANSIONS = ['Seafarers', 'Cities & Knights', 'Traders & Barbarians', 'Explorers & Pirates'];
 
@@ -74,7 +112,7 @@ export const PRESETS = {
   victoryPoints: [vp],
   lowPoints: [lowPoints],
   factionPoints: [
-    { key: 'faction', label: 'Faction', type: 'text', options: TERRA_MYSTICA_FACTIONS },
+    { key: 'faction', label: 'Faction', type: 'text' },
     points,
   ],
 };
@@ -86,7 +124,10 @@ export const SUGGESTED = {
     { key: 'expansions', label: 'Expansions', type: 'text', scope: 'game', multi: true, emptyLabel: 'Base game', options: CATAN_EXPANSIONS },
     vp,
   ],
-  'terra mystica': PRESETS.factionPoints,
+  'terra mystica': [
+    { key: 'faction', label: 'Faction', type: 'text', unique: true, options: TERRA_MYSTICA_FACTIONS },
+    points,
+  ],
   cribbage: [points],                     // first to 121; the loser's score shows the margin
   dominion: [vp],
   'five crowns': [lowPoints],
@@ -102,7 +143,7 @@ export const SUGGESTED = {
   ],
   'puerto rico': [vp],
   root: [
-    { key: 'faction', label: 'Faction', type: 'text', options: ROOT_FACTIONS },
+    { key: 'faction', label: 'Faction', type: 'text', unique: true, options: ROOT_FACTIONS },
     vp,                                   // blank for a dominance win
   ],
   'small world': [{ key: 'coins', label: 'Coins', type: 'number' }],

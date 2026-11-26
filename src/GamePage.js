@@ -4,7 +4,8 @@ import TrendsChart from './TrendsChart';
 import { gameStandings, playsForGame, fmtPercent } from './gameStats';
 import { fmtWins } from './plays';
 import { fmtPlayDate } from './dates';
-import { fieldsOf, scoringStats, setupStats, withDetails as detailLabel } from './scoring';
+import { fieldsOf, scoringStats, setupStats, optionFor } from './scoring';
+import { Swatch, PlayerDetails } from './Swatch';
 import SetupTag from './SetupTag';
 
 // One game's page: box art + BoardGameGeek link, standings with win rates,
@@ -39,7 +40,8 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
   const winsText = (wins) => [...wins.entries()].sort((a, b) => b[1] - a[1]).map(([id, w]) => `${name(id)} ${fmtWins(w)}`).join(', ');
 
   // "SG (Witches, 142)" — a player's initials with whatever details were noted.
-  const withDetails = (play, id) => detailLabel(play, game, id, name(id));
+  const withDetails = (play, id) => <PlayerDetails play={play} game={game} playerId={id} label={name(id)} />;
+  const joined = (items) => items.map((x, i) => <React.Fragment key={i}>{i > 0 && ', '}{x}</React.Fragment>);
 
   return (
     <div className="game-page text-start">
@@ -122,7 +124,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
                     <tbody>
                       {s.rows.map(r => (
                         <tr key={r.value}>
-                          <td>{r.value}</td>
+                          <td>{(o => o && <Swatch color={o.color} />)(optionFor(s.field, r.value))}{r.value}</td>
                           <td className="text-center">{r.played}</td>
                           <td className="text-center">{fmtWins(r.wins)}</td>
                           <td className="text-center">{fmtPercent(r.wins / r.played)}</td>
@@ -177,11 +179,11 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
             {recent.map(p => (
               <tr key={p.id}>
                 <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
-                <td>{p.playerIds.map(id => withDetails(p, id)).join(', ')}<div><SetupTag play={p} game={game} /></div></td>
+                <td>{joined(p.playerIds.map(id => withDetails(p, id)))}<div><SetupTag play={p} game={game} /></div></td>
                 <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
                 <td className="text-end">
                   {p.test && <Badge bg="secondary">test</Badge>}
-                  {!p.test && !p.counted && <Badge bg="light" text="dark" title="Not everyone at the table played">not on table</Badge>}
+                  {!p.test && !p.counted && <Badge bg="" className="badge-soft" title="Not everyone at the table played">not on table</Badge>}
                 </td>
               </tr>
             ))}

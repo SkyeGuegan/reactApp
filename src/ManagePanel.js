@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col, Badge } from 'react-bootstrap';
+import { Form, Button, Tabs, Tab, ListGroup, Dropdown, Row, Col } from 'react-bootstrap';
+import { allTimeStats, fmtWins } from './plays';
 import ScoreHistory from './ScoreHistory';
 import ArtworkDialog, { bggSearchUrl } from './ArtworkDialog';
 import EditPlayerDialog from './EditPlayerDialog';
@@ -16,7 +17,7 @@ import EditPlayerDialog from './EditPlayerDialog';
 // opens App's confirmation modal, onSetArt(game, { bggId, imageUrl }) resolves
 // true on success.
 export default function ManagePanel({
-  games, players, playerTotals,
+  games, players, gameScores = [],
   onAddGame, onAddPlayer, onEditPlayer, playerNames = new Map(), onRequestDelete, onSetArt, onOpenScoring,
   onVoid, onVoidPlay, plays, lastEvent, lastVoidedId,
 }) {
@@ -53,16 +54,9 @@ export default function ManagePanel({
     if (await onAddPlayer(initials, newPlayerCore, newPlayerName)) { setNewPlayer(''); setNewPlayerCore(false); setNewPlayerName(''); }
   }
 
-  const rosterRow = (kind, item, label, detail, badge) => (
-    <ListGroup.Item key={item.id} className="d-flex align-items-center justify-content-between py-2">
-      <span>
-        {label}
-        {kind === 'player' && playerNames.get(item.id) && <span className="ms-2">{playerNames.get(item.id)}</span>}
-        {badge}
-        {detail && <span className="text-muted small ms-2">{detail}</span>}
-      </span>
+  const actionsMenu = (kind, item, label) => (
       <Dropdown align="end">
-        <Dropdown.Toggle variant="link" size="sm" className="roster-menu text-secondary" aria-label={`Actions for ${label}`}>
+        <Dropdown.Toggle variant="link" size="sm" className="roster-menu" aria-label={`Actions for ${label}`}>
           ⋯
         </Dropdown.Toggle>
         <Dropdown.Menu>
@@ -80,8 +74,37 @@ export default function ManagePanel({
           </Dropdown.Item>
         </Dropdown.Menu>
       </Dropdown>
+  );
+
+  const gameRow = (g) => (
+    <ListGroup.Item key={g.id} className="d-flex align-items-center justify-content-between py-2">
+      <span>{g.name}{!g.imageUrl && <span className="text-muted small ms-2">no artwork</span>}</span>
+      {actionsMenu('game', g, g.name)}
     </ListGroup.Item>
   );
+
+  // Players in three groups. Every row: initials (fixed column), full name,
+  // then the same all-time numbers as the All games view.
+  const stats = new Map(allTimeStats(players, plays || [], games, gameScores).map(r => [r.player.id, r]));
+  const statText = (p) => {
+    if (p.hidden) return 'admins only';
+    const r = stats.get(p.id);
+    if (!r) return 'no games yet';
+    return `${fmtWins(r.wins)} ${r.wins === 1 ? 'win' : 'wins'} · ${r.played} ${r.played === 1 ? 'game' : 'games'}`;
+  };
+  const playerRow = (p) => (
+    <ListGroup.Item key={p.id} className="roster-player">
+      <span className="roster-initials">{p.initials}</span>
+      <span className="roster-name">{playerNames.get(p.id) || <span className="text-muted">No full name</span>}</span>
+      <span className="roster-stats">{statText(p)}</span>
+      {actionsMenu('player', p, p.initials)}
+    </ListGroup.Item>
+  );
+  const playerGroups = [
+    ['Regulars', players.filter(p => p.core && !p.hidden)],
+    ['Guests', players.filter(p => !p.core && !p.hidden)],
+    ['Test', players.filter(p => p.hidden)],
+  ].filter(([, list]) => list.length);
 
   return (
     <section className="manage-card" aria-label="Manage scoreboard">
@@ -161,22 +184,18 @@ export default function ManagePanel({
               <h3 className="manage-subtitle">Players <span className="text-muted">({players.length})</span></h3>
               {players.length === 0
                 ? <p className="text-muted small">No players yet — add one on the Add tab.</p>
-                : (
-                  <ListGroup>
-                    {players.map(p => {
-                      if (p.hidden) return rosterRow('player', p, p.initials, 'hidden from everyone but admins', <Badge bg="secondary" className="ms-2">test</Badge>);
-                      if (!p.core) return rosterRow('player', p, p.initials, null, <Badge bg="light" text="dark" className="ms-2">guest</Badge>);
-                      const wins = playerTotals.get(p.id) || 0;
-                      return rosterRow('player', p, p.initials, `${wins} ${wins === 1 ? 'win' : 'wins'}`);
-                    })}
-                  </ListGroup>
-                )}
+                : playerGroups.map(([title, list]) => (
+                  <div key={title} className="roster-group">
+                    <div className="roster-group-title">{title}</div>
+                    <ListGroup>{list.map(playerRow)}</ListGroup>
+                  </div>
+                ))}
             </Col>
             <Col md={6}>
               <h3 className="manage-subtitle">Games <span className="text-muted">({games.length})</span></h3>
               {games.length === 0
                 ? <p className="text-muted small">No games yet — add one on the Add tab.</p>
-                : <ListGroup className="roster-scroll">{games.map(g => rosterRow('game', g, g.name, g.imageUrl ? null : 'no artwork'))}</ListGroup>}
+                : <ListGroup className="roster-scroll">{games.map(gameRow)}</ListGroup>}
             </Col>
           </Row>
         </Tab>

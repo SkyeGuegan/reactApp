@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import RecordPlayDialog from './RecordPlayDialog';
 import ScoringFieldsDialog from './ScoringFieldsDialog';
 import GamePage from './GamePage';
@@ -93,11 +93,27 @@ test('Game page: Catan setups table and expansion tag on recent games', () => {
   expect(screen.getByText('SG 1')).toBeInTheDocument();
 });
 
-test('Record a game: factions are a dropdown; a hand-picked winner sticks until reset', () => {
+const tmColours = { id: 'tm', name: 'Terra Mystica', scoreFields: JSON.stringify(SUGGESTED['terra mystica']) };
+const picker = (label) => within(screen.getByLabelText(label).closest('.choice-picker'));
+
+test('Record a game: colour-chip factions, one player per colour', async () => {
+  const onSave = jest.fn(() => Promise.resolve(true));
+  render(<RecordPlayDialog show onHide={() => {}} games={[tmColours]} players={players} onSave={onSave} onAddGuest={() => {}} initialGameId="tm" />);
+  fireEvent.click(picker('Faction for SG').getByRole('button', { name: 'Witches' }));
+  expect(screen.getByLabelText('Faction for SG')).toHaveTextContent('Witches');
+  // Green (forest) is SG's now: both green factions are greyed out for MG.
+  expect(picker('Faction for MG').getByRole('button', { name: 'Auren' })).toHaveAttribute('aria-disabled', 'true');
+  expect(picker('Faction for MG').getByRole('button', { name: 'Witches' })).toHaveAttribute('aria-disabled', 'true');
+  expect(picker('Faction for MG').getByRole('button', { name: 'Ice Maidens' })).not.toHaveAttribute('aria-disabled', 'true');
+  fireEvent.click(picker('Faction for MG').getByRole('button', { name: 'Yetis' }));
+  fireEvent.change(screen.getByLabelText('Points for SG'), { target: { value: '142' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save game' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  expect(onSave.mock.calls[0][0].details).toEqual({ sg: { faction: 'Witches', points: 142 }, mg: { faction: 'Yetis' } });
+});
+
+test('Record a game: a hand-picked winner sticks until reset', () => {
   render(<RecordPlayDialog show onHide={() => {}} games={[tm]} players={players} onSave={() => {}} onAddGuest={() => {}} initialGameId="tm" />);
-  const faction = screen.getByLabelText('Faction for SG');
-  expect(faction.tagName).toBe('SELECT');
-  expect([...faction.options].map(o => o.value)).toContain('Ice Maidens');
   fireEvent.change(screen.getByLabelText('Points for SG'), { target: { value: '142' } });
   fireEvent.change(screen.getByLabelText('Points for NI'), { target: { value: '150' } });
   expect(screen.getByLabelText('NI', { selector: '#wins-ni' })).toBeChecked();
@@ -108,4 +124,14 @@ test('Record a game: factions are a dropdown; a hand-picked winner sticks until 
   fireEvent.click(screen.getByRole('button', { name: 'Pick the winner from the scores again' }));
   expect(screen.getByLabelText('MG', { selector: '#wins-mg' })).toBeChecked();
   expect(screen.getByLabelText('SG', { selector: '#wins-sg' })).not.toBeChecked();
+});
+
+test('Game page: faction colours show as dots in stats and recent games', () => {
+  const plays = [{ id: 'p1', gameId: 'tm', playedAt: '2026-11-20T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['sg'], counted: true,
+    details: JSON.stringify({ sg: { faction: 'Witches', points: 142 }, ni: { faction: 'Ice Maidens', points: 120 } }) }];
+  const { container } = render(<GamePage game={{ ...tmColours, baselinePlays: 0 }} corePlayers={players} players={players} gameScores={[]} plays={plays} played={1} isAdmin={false}
+    onRecord={() => {}} onSetArt={() => {}} onSetScoring={() => {}} />);
+  const dots = [...container.querySelectorAll('.swatch')].map(s => s.style.background);
+  expect(dots.filter(b => b.includes('46, 139, 61') || b === '#2e8b3d').length).toBe(2); // Witches: stats table + recent game
+  expect(screen.getByText(/SG \(Witches, 142\), MG, NI \(Ice Maidens, 120\)/)).toBeInTheDocument();
 });

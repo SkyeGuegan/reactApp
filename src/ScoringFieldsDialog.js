@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Button } from 'react-bootstrap';
+import { Modal, Form, Button, InputGroup } from 'react-bootstrap';
 import { fieldsOf, fieldKey, optionsOf, PRESETS, suggestedFor } from './scoring';
 import ArtworkDialog from './ArtworkDialog';
+import { Swatch } from './Swatch';
 
 // Admin dialog: choose which optional details to collect when this game is
 // recorded. Each field is a number or text, asked per player (Victory points,
@@ -10,11 +11,13 @@ import ArtworkDialog from './ArtworkDialog';
 // choice can have box art from BoardGameGeek. onSave(fields) resolves truthy on
 // success. Recorded details keep their values even if a field is later removed.
 
-// Editable copy of a field: options as comma text, art kept by option name.
+// Editable copy of a field: options as comma text; art and colours (color,
+// group) kept by option name so editing the list doesn't lose them.
 const toDraft = (f) => ({
   ...f,
   optionsText: optionsOf(f).map(o => o.name).join(', '),
   art: Object.fromEntries(optionsOf(f).filter(o => o.bggId || o.imageUrl).map(o => [o.name, { bggId: o.bggId || null, imageUrl: o.imageUrl || null }])),
+  look: Object.fromEntries(optionsOf(f).filter(o => o.color || o.group).map(o => [o.name, { ...(o.color ? { color: o.color } : {}), ...(o.group ? { group: o.group } : {}) }])),
 });
 const optionList = (f) => (f.type === 'text' ? f.optionsText.split(',').map(o => o.trim()).filter(Boolean) : []);
 
@@ -32,16 +35,17 @@ export default function ScoringFieldsDialog({ game, onHide, onSave }) {
   const suggested = suggestedFor(game);
   const update = (i, patch) => setFields(prev => prev.map((f, j) => (j === i ? { ...f, ...patch } : f)));
   const remove = (i) => setFields(prev => prev.filter((_, j) => j !== i));
-  const add = () => setFields(prev => [...prev, { key: '', label: '', type: 'number', optionsText: '', art: {} }]);
-  // Presets replace the list but keep any art already set for same-named options.
+  const add = () => setFields(prev => [...prev, { key: '', label: '', type: 'number', optionsText: '', art: {}, look: {} }]);
+  // Presets replace the list but keep any art or colours already set for same-named options.
   const apply = (list) => setFields(prev => list.map(f => {
     const d = toDraft(f);
     const old = prev.find(p => p.key === f.key);
-    return old ? { ...d, art: { ...old.art, ...d.art } } : d;
+    return old ? { ...d, art: { ...old.art, ...d.art }, look: { ...old.look, ...d.look } } : d;
   }));
 
   // Final list: labelled fields only, each with a stable unique key; options
-  // with art become { name, bggId, imageUrl }, the rest stay plain names.
+  // with colours or art become { name, color, group, bggId, imageUrl }, the
+  // rest stay plain names.
   const finalFields = () => {
     const keys = [];
     return fields
@@ -50,15 +54,19 @@ export default function ScoringFieldsDialog({ game, onHide, onSave }) {
         const key = f.key && !keys.includes(f.key) ? f.key : fieldKey(f.label, keys);
         keys.push(key);
         const options = optionList(f).map(name => {
-          const a = f.art[name];
-          return a && (a.bggId || a.imageUrl) ? { name, ...(a.bggId ? { bggId: a.bggId } : {}), ...(a.imageUrl ? { imageUrl: a.imageUrl } : {}) } : name;
+          const a = f.art[name] || {};
+          const look = (f.look || {})[name] || {};
+          const extra = { ...look, ...(a.bggId ? { bggId: a.bggId } : {}), ...(a.imageUrl ? { imageUrl: a.imageUrl } : {}) };
+          return Object.keys(extra).length ? { name, ...extra } : name;
         });
         const game = f.scope === 'game';
         const multi = f.type === 'text' && options.length > 0 && !!f.multi;
+        const unique = f.type === 'text' && options.length > 0 && !multi && !game && !!f.unique;
         return {
           key, label: f.label.trim(), type: f.type,
           ...(game ? { scope: 'game' } : {}),
           ...(multi ? { multi: true } : {}),
+          ...(unique ? { unique: true } : {}),
           ...(f.type === 'number' && f.lowWins ? { lowWins: true } : {}),
           ...(game && multi && f.emptyLabel && f.emptyLabel.trim() ? { emptyLabel: f.emptyLabel.trim() } : {}),
           ...(options.length ? { options } : {}),
@@ -129,6 +137,9 @@ export default function ScoringFieldsDialog({ game, onHide, onSave }) {
                   {f.type === 'text' && (
                     <Form.Check id={`field-${i}-multi`} label="Pick several" checked={!!f.multi} onChange={e => update(i, { multi: e.target.checked })} />
                   )}
+                  {f.type === 'text' && !f.multi && f.scope !== 'game' && (
+                    <Form.Check id={`field-${i}-unique`} label="One player per choice" checked={!!f.unique} onChange={e => update(i, { unique: e.target.checked })} />
+                  )}
                 </div>
                 {f.type === 'text' && (
                   <Form.Control
@@ -141,14 +152,15 @@ export default function ScoringFieldsDialog({ game, onHide, onSave }) {
                   />
                 )}
                 {f.type === 'text' && f.multi && f.scope === 'game' && (
-                  <Form.Control
-                    size="sm"
-                    className="mt-1"
-                    value={f.emptyLabel || ''}
-                    onChange={e => update(i, { emptyLabel: e.target.value })}
-                    placeholder="When none are picked, e.g. Base game (optional)"
-                    aria-label={`Field ${i + 1} label when none picked`}
-                  />
+                  <InputGroup size="sm" className="mt-1">
+                    <InputGroup.Text>None picked means</InputGroup.Text>
+                    <Form.Control
+                      value={f.emptyLabel || ''}
+                      onChange={e => update(i, { emptyLabel: e.target.value })}
+                      placeholder="e.g. Base game (optional)"
+                      aria-label={`Field ${i + 1} label when none picked`}
+                    />
+                  </InputGroup>
                 )}
                 {opts.length > 0 && (
                   <div className="d-flex flex-wrap gap-1 mt-1">
@@ -156,7 +168,7 @@ export default function ScoringFieldsDialog({ game, onHide, onSave }) {
                       const a = f.art[name];
                       return (
                         <Button key={name} size="sm" variant="outline-secondary" className="option-art-btn" onClick={() => setArtFor({ i, name })}>
-                          {a && a.imageUrl ? <img src={a.imageUrl} alt="" referrerPolicy="no-referrer" /> : '🖼'} {name}
+                          {a && a.imageUrl ? <img src={a.imageUrl} alt="" referrerPolicy="no-referrer" /> : (f.look || {})[name] && f.look[name].color ? <Swatch color={f.look[name].color} /> : '🖼'} {name}
                         </Button>
                       );
                     })}
