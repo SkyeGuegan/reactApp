@@ -7,7 +7,7 @@
 //     multi?: true,          // text with options: pick any number of them
 //     lowWins?: true,        // number: lower is better (Hearts, Formula D finish)
 //     emptyLabel?: string,   // game field: what nothing picked means ("Base game")
-//     options?: [string | { name, bggId?, imageUrl? }] }  // suggestions / choices, with optional box art
+//     options?: [string | { name, bggId?, imageUrl? }] }  // choices (a dropdown, or toggles when multi), with optional box art
 // A play's `details` (AWSJSON) holds the values: per player under their id, and
 // game-level values under GAME_KEY:
 //   { [playerId]: { points: 10 }, _game: { expansions: ['Seafarers'] } }
@@ -53,10 +53,12 @@ export function fieldKey(label, existing = []) {
   return key;
 }
 
-// Base-game Terra Mystica factions, offered as suggestions (any text allowed).
+// Terra Mystica factions: base game plus Fire & Ice (Acolytes, Dragonlords,
+// Ice Maidens, Riverwalkers, Shapeshifters, Yetis), alphabetical.
 export const TERRA_MYSTICA_FACTIONS = [
-  'Alchemists', 'Auren', 'Chaos Magicians', 'Cultists', 'Darklings', 'Dwarves', 'Engineers',
-  'Fakirs', 'Giants', 'Halflings', 'Mermaids', 'Nomads', 'Swarmlings', 'Witches',
+  'Acolytes', 'Alchemists', 'Auren', 'Chaos Magicians', 'Cultists', 'Darklings', 'Dragonlords',
+  'Dwarves', 'Engineers', 'Fakirs', 'Giants', 'Halflings', 'Ice Maidens', 'Mermaids', 'Nomads',
+  'Riverwalkers', 'Shapeshifters', 'Swarmlings', 'Witches', 'Yetis',
 ];
 export const ROOT_FACTIONS = ['Marquise de Cat', 'Eyrie Dynasties', 'Woodland Alliance', 'Vagabond'];
 // The Catan expansions we own.

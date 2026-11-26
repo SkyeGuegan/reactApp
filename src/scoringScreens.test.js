@@ -13,13 +13,12 @@ const NI = { id: 'ni', initials: 'NI', core: true };
 const players = [SG, MG, NI];
 const tm = { id: 'tm', name: 'Terra Mystica', baselinePlays: 21, scoreFields: JSON.stringify(PRESETS.factionPoints) };
 
-test('Record a game: optional details per player, and winner from highest points', async () => {
+test('Record a game: optional details per player; the winner defaults to the highest points', async () => {
   const onSave = jest.fn(() => Promise.resolve(true));
   render(<RecordPlayDialog show onHide={() => {}} games={[tm]} players={players} onSave={onSave} onAddGuest={() => {}} initialGameId="tm" />);
   fireEvent.change(screen.getByLabelText('Faction for SG'), { target: { value: 'Witches' } });
   fireEvent.change(screen.getByLabelText('Points for SG'), { target: { value: '142' } });
   fireEvent.change(screen.getByLabelText('Points for NI'), { target: { value: '120' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Set winner from highest points' }));
   expect(screen.getByLabelText('SG', { selector: '#wins-sg' })).toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Save game' }));
   await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -65,7 +64,6 @@ test('Record a game: Catan expansions are picked once for the game', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Seafarers' })); // toggled back off
   expect(screen.getByRole('button', { name: 'Cities & Knights' })).toHaveAttribute('aria-pressed', 'true');
   fireEvent.change(screen.getByLabelText('Victory points for MG'), { target: { value: '13' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Set winner from highest victory points' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save game' }));
   await waitFor(() => expect(onSave).toHaveBeenCalled());
   expect(onSave.mock.calls[0][0].details).toEqual({ mg: { points: 13 }, _game: { expansions: ['Cities & Knights'] } });
@@ -93,4 +91,21 @@ test('Game page: Catan setups table and expansion tag on recent games', () => {
   expect(screen.getAllByText('Cities & Knights').length).toBe(2); // setups table + recent game tag
   expect(screen.getByText('Base game')).toBeInTheDocument();    // setups table only
   expect(screen.getByText('SG 1')).toBeInTheDocument();
+});
+
+test('Record a game: factions are a dropdown; a hand-picked winner sticks until reset', () => {
+  render(<RecordPlayDialog show onHide={() => {}} games={[tm]} players={players} onSave={() => {}} onAddGuest={() => {}} initialGameId="tm" />);
+  const faction = screen.getByLabelText('Faction for SG');
+  expect(faction.tagName).toBe('SELECT');
+  expect([...faction.options].map(o => o.value)).toContain('Ice Maidens');
+  fireEvent.change(screen.getByLabelText('Points for SG'), { target: { value: '142' } });
+  fireEvent.change(screen.getByLabelText('Points for NI'), { target: { value: '150' } });
+  expect(screen.getByLabelText('NI', { selector: '#wins-ni' })).toBeChecked();
+  expect(screen.getByLabelText('SG', { selector: '#wins-sg' })).not.toBeChecked();
+  fireEvent.click(screen.getByLabelText('SG', { selector: '#wins-sg' })); // by hand
+  fireEvent.change(screen.getByLabelText('Points for MG'), { target: { value: '200' } });
+  expect(screen.getByLabelText('MG', { selector: '#wins-mg' })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Pick the winner from the scores again' }));
+  expect(screen.getByLabelText('MG', { selector: '#wins-mg' })).toBeChecked();
+  expect(screen.getByLabelText('SG', { selector: '#wins-sg' })).not.toBeChecked();
 });

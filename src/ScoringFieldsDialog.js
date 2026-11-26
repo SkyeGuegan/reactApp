@@ -136,7 +136,7 @@ export default function ScoringFieldsDialog({ game, onHide, onSave }) {
                     className="mt-1"
                     value={f.optionsText}
                     onChange={e => update(i, { optionsText: e.target.value })}
-                    placeholder={f.multi ? 'Choices, separated by commas' : 'Suggestions, separated by commas (optional)'}
+                    placeholder={f.multi ? 'Choices, separated by commas' : 'Choices for a dropdown, separated by commas (optional)'}
                     aria-label={`Field ${i + 1} choices`}
                   />
                 )}

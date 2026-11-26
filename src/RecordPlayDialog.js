@@ -30,6 +30,9 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
   const [date, setDate] = useState(todayLocal());
   const [playing, setPlaying] = useState(new Set());
   const [winners, setWinners] = useState(new Set());
+  // Winners follow the scores (highest points, or the game's rule) until the
+  // admin ticks or unticks someone by hand.
+  const [winnersByHand, setWinnersByHand] = useState(false);
   const [guest, setGuest] = useState('');
   const [guestName, setGuestName] = useState('');
   const [guestError, setGuestError] = useState('');
@@ -54,6 +57,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
     setDate(todayLocal());
     setPlaying(new Set(coreIds ? coreIds.split(',') : []));
     setWinners(new Set());
+    setWinnersByHand(false);
     setGuest('');
     setGuestError('');
     setExtraPlayers([]);
@@ -62,7 +66,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
   }, [show, coreIds, initialGameId]);
 
   // Details belong to one game's fields; start over when the game changes.
-  useEffect(() => { setRawDetails({}); }, [gameId]);
+  useEffect(() => { setRawDetails({}); setWinnersByHand(false); }, [gameId]);
 
   const toggle = (set, setter, id) => {
     const next = new Set(set);
@@ -114,6 +118,14 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
   const { counted, test, missing } = classifyPlay(playerIds, allPlayers);
   const shares = counted ? winShares(winnerIds, allPlayers) : [];
   const canSave = gameId && date && playerIds.length >= 1 && winnerIds.length >= 1 && !busy;
+
+  // Default the winner from the scores entered so far.
+  const scoreWinners = hasNumber ? bestPlayers(cleanDetails(rawDetails, fields, playerIds), pFields, playerIds) : [];
+  const scoreWinnersKey = scoreWinners.join(',');
+  useEffect(() => {
+    if (!winnersByHand && hasNumber) setWinners(new Set(scoreWinnersKey ? scoreWinnersKey.split(',') : []));
+  }, [scoreWinnersKey, winnersByHand, hasNumber]);
+  const autoPicked = !winnersByHand && scoreWinners.length > 0;
 
   let status;
   if (test) status = <><Badge bg="secondary">test</Badge> Only admins will see this game; it won't affect any scores.</>;
@@ -218,19 +230,20 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                     );
                   })}
                 </div>
+              ) : opts.length ? (
+                <Form.Select size="sm" value={gameValue(fl.key) || ''} onChange={e => setDetail(GAME_KEY, fl.key, e.target.value)} aria-label={fl.label} style={{ maxWidth: 260 }}>
+                  <option value="">—</option>
+                  {opts.map(o => <option key={o.name} value={o.name}>{o.name}</option>)}
+                </Form.Select>
               ) : (
-                <>
-                  <Form.Control
-                    size="sm"
-                    type={fl.type === 'number' ? 'number' : 'text'}
-                    list={opts.length ? `opts-${fl.key}` : undefined}
-                    value={gameValue(fl.key) || ''}
-                    onChange={e => setDetail(GAME_KEY, fl.key, e.target.value)}
-                    aria-label={fl.label}
-                    style={{ maxWidth: 260 }}
-                  />
-                  {opts.length > 0 && <datalist id={`opts-${fl.key}`}>{opts.map(o => <option key={o.name} value={o.name} />)}</datalist>}
-                </>
+                <Form.Control
+                  size="sm"
+                  type={fl.type === 'number' ? 'number' : 'text'}
+                  value={gameValue(fl.key) || ''}
+                  onChange={e => setDetail(GAME_KEY, fl.key, e.target.value)}
+                  aria-label={fl.label}
+                  style={{ maxWidth: 260 }}
+                />
               )}
             </fieldset>
           );
@@ -249,32 +262,35 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                     <th scope="row">{p.initials}</th>
                     {pFields.map(fl => (
                       <td key={fl.key}>
-                        <Form.Control
-                          size="sm"
-                          type={fl.type === 'number' ? 'number' : 'text'}
-                          inputMode={fl.type === 'number' ? 'decimal' : undefined}
-                          list={optionsOf(fl).length ? `opts-${fl.key}` : undefined}
-                          value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
-                          onChange={e => setDetail(p.id, fl.key, e.target.value)}
-                          aria-label={`${fl.label} for ${p.initials}`}
-                        />
+                        {fl.type === 'text' && optionsOf(fl).length ? (
+                          <Form.Select
+                            size="sm"
+                            value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
+                            onChange={e => setDetail(p.id, fl.key, e.target.value)}
+                            aria-label={`${fl.label} for ${p.initials}`}
+                          >
+                            <option value="">—</option>
+                            {optionsOf(fl).map(o => <option key={o.name} value={o.name}>{o.name}</option>)}
+                          </Form.Select>
+                        ) : (
+                          <Form.Control
+                            size="sm"
+                            type={fl.type === 'number' ? 'number' : 'text'}
+                            inputMode={fl.type === 'number' ? 'decimal' : undefined}
+                            value={(rawDetails[p.id] && rawDetails[p.id][fl.key]) || ''}
+                            onChange={e => setDetail(p.id, fl.key, e.target.value)}
+                            aria-label={`${fl.label} for ${p.initials}`}
+                          />
+                        )}
                       </td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </table>
-            {pFields.filter(fl => optionsOf(fl).length).map(fl => (
-              <datalist key={fl.key} id={`opts-${fl.key}`}>{optionsOf(fl).map(o => <option key={o.name} value={o.name} />)}</datalist>
-            ))}
-            {hasNumber && (
-              <Button
-                size="sm"
-                variant="link"
-                className="p-0 mt-1"
-                onClick={() => setWinners(new Set(bestPlayers(cleanDetails(rawDetails, fields, playerIds), pFields, playerIds)))}
-              >
-                Set winner from {winnerRuleLabel(pFields)}
+            {hasNumber && winnersByHand && (
+              <Button size="sm" variant="link" className="p-0 mt-1" onClick={() => setWinnersByHand(false)}>
+                Pick the winner from the scores again
               </Button>
             )}
           </fieldset>
@@ -292,10 +308,13 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
                 id={`wins-${p.id}`}
                 label={p.initials}
                 checked={winners.has(p.id)}
-                onChange={() => toggle(winners, setWinners, p.id)}
+                onChange={() => { setWinnersByHand(true); toggle(winners, setWinners, p.id); }}
               />
             ))}
-          <div className="form-text">Tick more than one for a shared win; the win is split evenly.</div>
+          <div className="form-text">
+            {autoPicked && <>Picked from the {winnerRuleLabel(pFields)}. Tick or untick to change. </>}
+            Tick more than one for a shared win; the win is split evenly.
+          </div>
         </fieldset>
 
         <div className={`play-status mt-3 ${counted && !test ? 'counts' : ''}`} role="status">{status}</div>
