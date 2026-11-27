@@ -233,7 +233,7 @@ function numberStat(f, plays) {
     for (const [pid, row] of Object.entries(playerDetailsOf(p))) {
       const v = row[f.key];
       if (typeof v !== 'number') continue;
-      if (!best || better(f, v, best.value)) best = { value: v, playerId: pid, playedAt: p.playedAt };
+      if (!best || better(f, v, best.value)) best = { value: v, playerId: pid, playedAt: p.playedAt, play: p };
       if (p.winnerIds.includes(pid)) winning.push(v);
     }
   }
@@ -282,7 +282,7 @@ function addResult(t, f, play, pid, placing) {
   const v = f && row ? row[f.key] : undefined;
   if (typeof v === 'number') {
     t.scores.push(v);
-    if (!t.best || better(f, v, t.best.value)) t.best = { value: v, playerId: pid, playedAt: play.playedAt };
+    if (!t.best || better(f, v, t.best.value)) t.best = { value: v, playerId: pid, playedAt: play.playedAt, play };
   }
 }
 const summary = ({ places, scores, diffs, ...rest }) =>
@@ -314,7 +314,7 @@ export function scoringStats(game, plays) {
   });
 }
 
-// Per-player stats from recorded plays with details: games, wins, average
+// Per-player stats from recorded plays (details optional): games, wins, average
 // place / score / margin, best score, and for the first per-player choice
 // field (e.g. faction) their most-played choice and the one they've won most
 // with. Rows sorted by wins, then games.
@@ -324,7 +324,9 @@ export function playerScoringStats(game, plays) {
   const rows = new Map();
   for (const p of livePlays(game, plays)) {
     const placed = placings(p, main);
-    for (const [pid, row] of Object.entries(playerDetailsOf(p))) {
+    const details = playerDetailsOf(p);
+    for (const pid of p.playerIds) {
+      const row = details[pid] || {};
       if (!rows.has(pid)) rows.set(pid, { playerId: pid, ...tally(), choices: new Map() });
       const r = rows.get(pid);
       addResult(r, main, p, pid, placed[pid]);

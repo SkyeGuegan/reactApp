@@ -3,7 +3,7 @@ import { Table, Badge, Button, Modal, ButtonGroup } from 'react-bootstrap';
 import { everyoneStats, allTimeStats, fmtWins } from './plays';
 
 import { fmtPlayDate } from './dates';
-import { PlayerDetails } from './Swatch';
+import { PlayerDetails, PlayerLines } from './Swatch';
 import SetupTag from './SetupTag';
 const PAGE = 20;
 
@@ -98,7 +98,11 @@ export default function AllGames({ plays, players, isAdmin, onVoid, games = [], 
             <tr key={p.id}>
               <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
               <td>{p.gameName || '?'}<div><SetupTag play={p} game={gameById.get(p.gameId)} /></div></td>
-              <td>{p.playerIds.map((id, i) => <React.Fragment key={id}>{i > 0 && ', '}<PlayerDetails play={p} game={gameById.get(p.gameId)} playerId={id} label={name(id)} /></React.Fragment>)}</td>
+              <td>
+                {/* One line per player when factions/scores were noted, else a plain list. */}
+                {(gameById.get(p.gameId) && PlayerLines({ play: p, game: gameById.get(p.gameId), label: name }))
+                  || p.playerIds.map((id, i) => <React.Fragment key={id}>{i > 0 && ', '}<PlayerDetails play={p} game={gameById.get(p.gameId)} playerId={id} label={name(id)} /></React.Fragment>)}
+              </td>
               <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
               <td className="text-end text-nowrap">
                 {p.test && <Badge bg="secondary" className="me-1">test</Badge>}

@@ -40,7 +40,7 @@ test('scoringStats: best score, average winning score, and faction win rates', (
     { gameId: 'other', winnerIds: ['sg'], details: { sg: { points: 500 } } },
   ];
   const [faction, points] = scoringStats(game, plays);
-  expect(points.best).toEqual({ value: 150, playerId: 'ni', playedAt: '2026-11-08' });
+  expect(points.best).toMatchObject({ value: 150, playerId: 'ni', playedAt: '2026-11-08' });
   expect(points.avgWin).toBe(145);
   expect(faction.rows.map(r => [r.value, r.played, r.wins])).toEqual([['Witches', 2, 1], ['Giants', 1, 1], ['Nomads', 1, 0]]);
 });

@@ -6,12 +6,16 @@ import GamePage from './GamePage';
 import { PRESETS, SUGGESTED } from './scoring';
 
 jest.mock('./TrendsChart', () => () => null); // the chart loads data; not under test here
+jest.mock('./PlayTrends', () => () => null);
 
 const SG = { id: 'sg', initials: 'SG', core: true };
 const MG = { id: 'mg', initials: 'MG', core: true };
 const NI = { id: 'ni', initials: 'NI', core: true };
 const players = [SG, MG, NI];
 const tm = { id: 'tm', name: 'Terra Mystica', baselinePlays: 21, scoreFields: JSON.stringify(PRESETS.factionPoints) };
+
+const playerLines = (container) => [...container.querySelectorAll('.player-lines')].map(g =>
+  [...g.querySelectorAll('.player-line')].map(l => [...l.children].map(c => c.textContent).join('|')));
 
 test('Record a game: optional details per player; the winner defaults to the highest points', async () => {
   const onSave = jest.fn(() => Promise.resolve(true));
@@ -50,7 +54,7 @@ test('Game page: scores, faction win rates, details in recent games, and the ear
   expect(screen.getByText('Best points')).toBeInTheDocument();
   expect(screen.getAllByText('142').length).toBeGreaterThan(0);
   expect(screen.getAllByText('Witches').length).toBeGreaterThan(0);
-  expect(screen.getByText(/SG \(Witches, 142\), MG, NI \(Nomads, 120\)/)).toBeInTheDocument();
+  expect(playerLines(document.body)).toEqual([['SG|Witches|142', 'NI|Nomads|120', 'MG||']]);
   expect(screen.getByText(/Plus 21 earlier games between SG, MG, NI/)).toBeInTheDocument();
 });
 
@@ -90,7 +94,7 @@ test('Game page: Catan setups table and expansion tag on recent games', () => {
   expect(screen.getByRole('columnheader', { name: 'Setup' })).toBeInTheDocument();
   expect(screen.getAllByText('Cities & Knights').length).toBe(2); // setups table + recent game tag
   expect(screen.getByText('Base game')).toBeInTheDocument();    // setups table only
-  expect(screen.getByText('SG 1')).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'SG 1' })).toBeInTheDocument(); // setups table: who won with it
 });
 
 const tmColours = { id: 'tm', name: 'Terra Mystica', scoreFields: JSON.stringify(SUGGESTED['terra mystica']) };
@@ -132,11 +136,14 @@ test('Game page: faction colours show as dots in stats and recent games', () => 
   const { container } = render(<GamePage game={{ ...tmColours, baselinePlays: 0 }} corePlayers={players} players={players} gameScores={[]} plays={plays} played={1} isAdmin={false}
     onRecord={() => {}} onSetArt={() => {}} onSetScoring={() => {}} />);
   const dots = [...container.querySelectorAll('.swatch')].map(s => s.style.background);
-  expect(dots.filter(b => b.includes('46, 139, 61') || b === '#2e8b3d').length).toBe(4); // Witches: faction table, by player (most played, most wins), recent game
-  expect(screen.getByText(/SG \(Witches, 142\), MG, NI \(Ice Maidens, 120\)/)).toBeInTheDocument();
+  const witchDot = (el) => [...el.querySelectorAll('.swatch')].some(s => s.style.background.includes('46, 139, 61') || s.style.background === '#2e8b3d');
+  expect(dots.length).toBeGreaterThan(0);
+  expect(witchDot(screen.getAllByRole('row').find(r => r.cells[0] && r.cells[0].textContent === 'Witches'))).toBe(true); // faction table
+  expect(witchDot(container.querySelector('.player-line.won'))).toBe(true); // recent game: SG's line, in bold as the winner
+  expect(playerLines(container)).toEqual([['SG|Witches|142', 'NI|Ice Maidens|120', 'MG||']]);
 });
 
-test('Game page: faction table with online rates, by-player table, player-count filter', () => {
+test('Game page: faction table with online rates, All recorded players, best with faction, player-count filter', () => {
   const plays = [
     { id: 'p1', gameId: 'tm', playedAt: '2026-11-20T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['sg'], counted: true,
       details: JSON.stringify({ sg: { faction: 'Witches', points: 142 }, mg: { faction: 'Nomads', points: 120 }, ni: { faction: 'Ice Maidens', points: 100 } }) },
@@ -148,9 +155,14 @@ test('Game page: faction table with online rates, by-player table, player-count 
   const witches = screen.getAllByRole('row').find(r => r.textContent.startsWith('Witches'));
   // Games 2, wins 2, 100%, online 27%, avg place 1.0, avg 126, vs table +16, best 142 SG
   expect([...witches.cells].map(c => c.textContent)).toEqual(['Witches', '2', '2', '100%', '27%', '1.0', '126', '+16', '142 SG']);
-  const sg = screen.getAllByRole('row').find(r => r.cells[0] && r.cells[0].textContent === 'SG' && r.cells.length === 8);
-  expect(sg.textContent).toContain('Witches ×1');
-  fireEvent.click(screen.getByRole('button', { name: '2p' }));
+  // Best points tile names the faction
+  expect(screen.getByText('Best points').closest('.glance-tile')).toHaveTextContent('142SG (Witches)');
+  // Players: main table by default; All recorded adds scores and favourites
+  fireEvent.click(screen.getByRole('button', { name: 'All recorded' }));
+  const sg = screen.getAllByRole('row').find(r => r.cells[0] && r.cells[0].textContent === 'SG');
+  expect([...sg.cells].map(c => c.textContent)).toEqual(['SG', '2', '1', '50%', '1.5', '116', '142 Witches', 'Witches ×1', 'Witches 1 of 1']);
+  fireEvent.click(screen.getByRole('button', { name: /^2p/ }));
+  expect(screen.getByRole('button', { name: 'Main scoreboard' })).toBeDisabled();
   expect(screen.getAllByRole('row').find(r => r.textContent.startsWith('Witches')).cells[1].textContent).toBe('1');
   expect(screen.getAllByRole('row').some(r => r.cells[0] && r.cells[0].textContent === 'Ice Maidens')).toBe(false);
 });
@@ -199,4 +211,35 @@ test('Game page: standings show games played; Terra Mystica links to outside gui
   expect([...sg.cells].slice(1, 4).map(c => c.textContent)).toEqual(['5', '3', '60%']);
   expect(screen.getByRole('link', { name: 'Faction stats ↗' })).toHaveAttribute('href', 'https://terra.snellman.net/stats/');
   expect(screen.getByRole('link', { name: /Faction strategy/ })).toHaveAttribute('href', expect.stringContaining('gaming-strategy.com'));
+});
+
+test('Game page: factions and All recorded players sort by the clicked column', () => {
+  const plays = [
+    { id: 'p1', gameId: 'tm', playedAt: '2026-11-20T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['ni'], counted: true,
+      details: JSON.stringify({ sg: { faction: 'Witches', points: 100 }, mg: { faction: 'Nomads', points: 120 }, ni: { faction: 'Darklings', points: 150 } }) },
+    { id: 'p2', gameId: 'tm', playedAt: '2026-11-21T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['mg'], counted: true,
+      details: JSON.stringify({ sg: { faction: 'Witches', points: 90 }, mg: { faction: 'Nomads', points: 130 }, ni: { faction: 'Darklings', points: 110 } }) },
+  ];
+  render(<GamePage game={{ ...tmColours, baselinePlays: 0 }} corePlayers={players} players={players} gameScores={[]} plays={plays} played={2} isAdmin={false}
+    onRecord={() => {}} onSetArt={() => {}} onSetScoring={() => {}} />);
+  const firstCells = (table) => [...table.querySelectorAll('tbody tr')].map(r => r.cells[0].textContent);
+  const factions = () => screen.getByRole('columnheader', { name: /^Faction/ }).closest('table');
+  fireEvent.click(within(factions()).getByRole('button', { name: /^Avg points/ }));
+  expect(firstCells(factions())).toEqual(['Darklings', 'Nomads', 'Witches']);
+  fireEvent.click(within(factions()).getByRole('button', { name: /^Avg points/ }));
+  expect(firstCells(factions())).toEqual(['Witches', 'Nomads', 'Darklings']);
+  fireEvent.click(screen.getByRole('button', { name: 'All recorded' }));
+  const people = () => screen.getByRole('button', { name: /^Player/ }).closest('table');
+  fireEvent.click(within(people()).getByRole('button', { name: /^Player/ }));
+  expect(firstCells(people())).toEqual(['MG', 'NI', 'SG']);
+  fireEvent.click(within(people()).getByRole('button', { name: /^Best/ }));
+  expect(firstCells(people())).toEqual(['NI', 'MG', 'SG']);
+});
+
+test('Game page: recent games without details stay one comma-separated line', () => {
+  const plays = [{ id: 'p1', gameId: 'tm', playedAt: '2026-11-20T12:00:00Z', playerIds: ['sg', 'mg', 'ni'], winnerIds: ['mg'], counted: true }];
+  const { container } = render(<GamePage game={{ ...tmColours, baselinePlays: 0 }} corePlayers={players} players={players} gameScores={[]} plays={plays} played={1} isAdmin={false}
+    onRecord={() => {}} onSetArt={() => {}} onSetScoring={() => {}} />);
+  expect(container.querySelector('.player-lines')).toBeNull();
+  expect(screen.getByText('SG, MG, NI')).toBeInTheDocument();
 });

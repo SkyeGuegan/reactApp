@@ -1,6 +1,6 @@
 import React from 'react';
 import { Dropdown } from 'react-bootstrap';
-import { optionsOf, optionFor, playerDetailsOf, playerFields } from './scoring';
+import { optionsOf, optionFor, playerDetailsOf, playerFields, mainScoreField, placings } from './scoring';
 
 // A small colour dot for a choice (e.g. a Terra Mystica faction's terrain).
 // color 'any' (factions that pick any colour) shows a rainbow.
@@ -68,4 +68,42 @@ export function PlayerDetails({ play, game, playerId, label }) {
     : [];
   if (!bits.length) return <>{label}</>;
   return <>{label} ({bits.map((b, i) => <React.Fragment key={i}>{i > 0 && ', '}{b}</React.Fragment>)})</>;
+}
+
+const noted = (v) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && !v.length);
+
+// A play's players one per line, in aligned columns — "SG  ● Witches  118" —
+// best finish first (as entered when there are no scores); winners in bold.
+// label(id) names a player. Returns null when nothing was noted for anyone,
+// so the caller can show a plain list instead.
+export function PlayerLines({ play, game, label }) {
+  const details = playerDetailsOf(play);
+  const fields = playerFields(game).filter(f => play.playerIds.some(id => details[id] && noted(details[id][f.key])));
+  if (!fields.length) return null;
+  const placed = placings(play, mainScoreField(game));
+  const rank = (id) => (placed[id] ? placed[id].place : Infinity);
+  const ids = [...play.playerIds].sort((a, b) => rank(a) - rank(b));
+  return (
+    <div className="player-lines" style={{ gridTemplateColumns: `auto repeat(${fields.length}, auto)` }}>
+      {ids.map(id => {
+        const row = details[id] || {};
+        const won = play.winnerIds.includes(id);
+        return (
+          <div key={id} className={`player-line${won ? ' won' : ''}`}>
+            <span className="pl-name">{label(id)}</span>
+            {fields.map(f => {
+              const v = row[f.key];
+              if (!noted(v)) return <span key={f.key} className="pl-empty" />;
+              const o = f.type === 'text' && !Array.isArray(v) ? optionFor(f, v) : null;
+              return (
+                <span key={f.key} className={f.type === 'number' ? 'pl-num' : 'pl-text'}>
+                  {o && <Swatch color={o.color} />}{[].concat(v).join(' + ')}
+                </span>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
