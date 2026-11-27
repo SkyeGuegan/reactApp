@@ -8,20 +8,32 @@ A win tally for our game nights: who has won which game, overall totals, and how
 
 ## Features
 
-- **Table**: wins per game and player, with a Totals row. The overall leader gets a crown and gold total; the best score in each game is bold. Scores can include half points (from shared wins).
-- **Game pages**: click a game for its own page (e.g. `#/game/settlers-of-catan`): box art, a BoardGameGeek link, standings with win rates, wins over time, and recent games.
-- **Scoring details** (optional, per game): e.g. Catan victory points, Terra Mystica faction + points. Game pages then show best and average winning scores and faction win rates. Admins choose the fields under Scoring details.
-- **All time vs Recorded**: All games → Everyone counts games from before individual recording as games between the three regulars.
-- **Pick a game**: a wheel that picks a random game from the ones you tick (plus any typed in). Optional "favour games we haven't played lately" makes long-unplayed games come up more; slice sizes show the odds.
-- **Box art**: each game shows its BoardGameGeek cover (admins set or change it under Manage → Roster → Set artwork, or on the game's page).
-- **Trends**: each player's cumulative wins over time. Corrections (a win added then removed) don't show as dips.
-- **Played**: a column on the right counting how often each game has been played with all three regulars; the Totals row has the overall count.
-- **All games**: every recorded game, including ones with guests or where someone was missing, plus everyone's played / wins / win rate.
-- **Admin editing** (signed-in members of the Cognito `admin` group only):
-  - **Record a game**: pick the game, date, who played and who won (shared wins split evenly). A game counts on the main table only when Skye, Nick and Montana all played. Guests are saved as players but never get a table column. A hidden TEST player lets you try things on the live site without affecting anything.
-  - **Edit scores** turns the table into −/+ steppers. Column order stays put while you edit; − asks for confirmation; every change shows a notice with **Undo**.
-  - **Manage** card: add games and players, delete them from the roster, and browse the full score history, where any change can be voided.
-  - Scores can never go below 0 (enforced by the server, not just the UI).
+Every view has its own address (hash links), so Back, refresh and sharing a link all work.
+
+- **Scoreboard** (`#/`): at-a-glance tiles (leader, last game, games this month, current win streak, most played) above the main table: wins per game for each regular, a Played column and a Totals row. The overall leader gets a crown; the best score in each game is bold; shared wins give half points.
+- **Players** (`#/players`): everyone's played / wins / win rate, either **All time** (games from before individual recording count as games between the regulars, since only the winner was kept) or **All recorded** (individually recorded games, guests included).
+- **Player pages** (`#/player/sg`): a player's record in every game (sortable), best and most-played games, win streaks, head-to-head against everyone they've played, and their recorded games with where they finished.
+- **Game pages** (`#/game/terra-mystica`): box art and links (BoardGameGeek, plus guides for some games), at-a-glance numbers, a player-count filter, standings (main scoreboard or all recorded games), sortable stats per choice (e.g. faction win rates, average place, points against the table average, best score, online win rates for Terra Mystica), setups (e.g. Catan expansions), records (biggest win, closest game), head-to-head, win streaks, wins and winning score over time, and recent games.
+- **Scoring details** (optional, per game): e.g. Catan victory points and expansions, Terra Mystica faction + points with colour-coded factions (one player per colour). The winner defaults to the best score. Admins choose the fields under Scoring details.
+- **Game log** (`#/log`): every recorded game, newest first, including ones with guests or where a regular was missing (marked *not on scoreboard*), with each player's faction and score when noted.
+- **Trends** (`#/trends`): each player's cumulative wins over time. Corrections (a win added then removed) don't show as dips.
+- **Pick a game** (`#/pick`): a wheel that picks a random game from the ones you tick (plus any typed in). Optional "favour games we haven't played lately" makes long-unplayed games come up more; slice sizes show the odds.
+- **Box art**: each game shows its BoardGameGeek cover.
+
+### Main scoreboard, all recorded, all time
+
+- **Main scoreboard**: games where every regular played. These change the main table.
+- **All recorded**: every game recorded individually, including guests and games where a regular was missing.
+- **All time**: both together, counting the pre-recording history as games between the regulars.
+
+### Admins
+
+Signed-in members of the Cognito `admin` group only:
+
+- **＋ Record a game** (in the header on every page): pick the game, date, who played and who won (shared wins split evenly), plus any scoring details. A game counts on the main scoreboard only when all three regulars played. Guests are saved as players but never get a column on the main table. A hidden TEST player lets you try things on the live site without affecting anything.
+- **Void** a recorded game from the Game log; the record is kept, marked voided.
+- **Manage** (`#/manage`): add games and players (with admin-only full names), edit the roster, set box art and scoring details, and **Corrections**: edit totals directly with −/+ (for fixing mistakes; recording a game is the normal way to add a win), with the full score-change history below, where any change can be voided.
+- Scores can never go below 0 (enforced by the server, not just the UI).
 
 Anyone can view the board. Only admins can change it, and the backend enforces that on every write.
 
@@ -37,10 +49,10 @@ Defined in `amplify/backend/api/reactapp/schema.graphql`:
 
 | Model | What it is |
 |---|---|
-| `Player` | A player's initials |
+| `Player` | A player's initials (and an admin-only full name); regulars get a column on the main table |
 | `Game` | A game on the board |
 | `GameScore` | One player's current score in one game (a table cell) |
-| `Play` | One recorded game: who played, who won, and whether it counted on the main table |
+| `Play` | One recorded game: who played, who won, optional scoring details, and whether it counts on the main scoreboard |
 | `ScoreEvent` | Append-only history: one row per score change. Rows are voided, never deleted. Powers Trends and the admin history. |
 
 Score changes go through a custom `incrementScore` mutation that updates the cell atomically on the server and refuses to go below 0.
@@ -70,6 +82,5 @@ Never run `amplify init`: it creates a brand-new backend. Backend changes are de
 
 ## Ideas
 
-- Links to each game's website
 - MFA for admin sign-in
 - Move from Create React App to Vite
