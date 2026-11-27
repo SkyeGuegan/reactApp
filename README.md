@@ -61,10 +61,12 @@ The app reads its backend settings from `src/aws-exports.js`, which is generated
 ```
 npm install -g @aws-amplify/cli
 amplify configure              # region us-west-2, profile "default"
-amplify pull                   # connect to the existing backend
+amplify pull --appId d1uiq2n8l3hr2t --envName dev   # connect to the existing backend
 ```
 
 Never run `amplify init`: it creates a brand-new backend. Backend changes are deployed with `amplify push`.
+
+`amplify pull` also recreates `amplify/team-provider-info.json` (environment details such as the AWS account ID), which is kept out of the repo.
 
 ## Ideas
 

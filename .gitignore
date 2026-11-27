@@ -44,3 +44,7 @@ amplifytools.xcconfig
 .secret-*
 **.sample
 #amplify-do-not-edit-end
+
+# Amplify environment details (AWS account ID, role names). Kept local;
+# a new machine recreates it with `amplify pull`.
+amplify/team-provider-info.json
