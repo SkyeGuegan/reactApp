@@ -96,7 +96,7 @@ export function PlayerLines({ play, game, label }) {
               if (!noted(v)) return <span key={f.key} className="pl-empty" />;
               const o = f.type === 'text' && !Array.isArray(v) ? optionFor(f, v) : null;
               return (
-                <span key={f.key} className={f.type === 'number' ? 'pl-num' : 'pl-text'}>
+                <span key={f.key} className={f.type === 'number' ? 'pl-num' : 'pl-text'} title={f.type === 'number' ? undefined : [].concat(v).join(' + ')}>
                   {o && <Swatch color={o.color} />}{[].concat(v).join(' + ')}
                 </span>
               );

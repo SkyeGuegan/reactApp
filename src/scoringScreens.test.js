@@ -241,5 +241,6 @@ test('Game page: recent games without details stay one comma-separated line', ()
   const { container } = render(<GamePage game={{ ...tmColours, baselinePlays: 0 }} corePlayers={players} players={players} gameScores={[]} plays={plays} played={1} isAdmin={false}
     onRecord={() => {}} onSetArt={() => {}} onSetScoring={() => {}} />);
   expect(container.querySelector('.player-lines')).toBeNull();
-  expect(screen.getByText('SG, MG, NI')).toBeInTheDocument();
+  const plain = screen.getAllByRole('cell').find(c => c.textContent === 'SG, MG, NI');
+  expect(plain.querySelector('strong').textContent).toBe('MG'); // winner in bold (Won is hidden on phones)
 });

@@ -56,5 +56,6 @@ test('All games: scored games list one player per line, best first; others stay 
   const { container } = render(<AllGames games={[tm, dom]} players={ps} plays={plays} isAdmin={false} onVoid={() => {}} />);
   const lines = [...container.querySelectorAll('.player-line')].map(l => [...l.children].map(c => c.textContent).join('|'));
   expect(lines).toEqual(['MG|Nomads|120', 'SG|Witches|100']);
-  expect(screen.getByText('SG, MG')).toBeInTheDocument();
+  const plain = screen.getAllByRole('cell').find(c => c.textContent === 'SG, MG');
+  expect(plain.querySelector('strong').textContent).toBe('SG'); // winner in bold (Won is hidden on phones)
 });

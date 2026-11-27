@@ -154,7 +154,8 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
     const v = rec.play ? choiceOf(rec.play, rec.playerId) : null;
     return <>{name(rec.playerId)}{v && <> ({swatch(choiceField, v)}{v})</>}</>;
   };
-  const withDetails = (play, id) => <PlayerDetails play={play} game={game} playerId={id} label={name(id)} />;
+  // Winners in bold, so the winner shows even where the Won column is hidden (phones).
+  const withDetails = (play, id) => <PlayerDetails play={play} game={game} playerId={id} label={play.winnerIds.includes(id) ? <strong>{name(id)}</strong> : name(id)} />;
   const joined = (items) => items.map((x, i) => <React.Fragment key={i}>{i > 0 && ', '}{x}</React.Fragment>);
   // "SG 2, NI 1" — who has won with a setup, most first.
   const winsText = (wins) => [...wins.entries()].sort((a, b) => b[1] - a[1]).map(([id, w]) => `${name(id)} ${fmtWins(w)}`).join(', ');
@@ -505,20 +506,20 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
         ) : (
           <>
             <Table size="sm" responsive className="small mb-1">
-              <thead><tr><th>Date</th><th>Players</th><th>Won</th><th /></tr></thead>
+              <thead><tr><th>Date</th><th>Players</th><th className="d-none d-sm-table-cell">Won</th></tr></thead>
               <tbody>
                 {(showAllRecent ? recent : recent.slice(0, RECENT)).map(p => (
                   <tr key={p.id}>
-                    <td className="text-nowrap">{fmtDay(p.playedAt)}</td>
+                    <td className="text-nowrap">
+                      {fmtDay(p.playedAt)}
+                      {p.test && <div><Badge bg="secondary">test</Badge></div>}
+                      {!p.test && !p.counted && <div><Badge bg="" className="badge-soft" title="Not everyone at the table played">not on table</Badge></div>}
+                    </td>
                     <td>
                       {PlayerLines({ play: p, game, label: name }) || joined(p.playerIds.map(id => withDetails(p, id)))}
                       <div><SetupTag play={p} game={game} /></div>
                     </td>
-                    <td className="fw-semibold">{p.winnerIds.map(name).join(' & ')}</td>
-                    <td className="text-end">
-                      {p.test && <Badge bg="secondary">test</Badge>}
-                      {!p.test && !p.counted && <Badge bg="" className="badge-soft" title="Not everyone at the table played">not on table</Badge>}
-                    </td>
+                    <td className="fw-semibold d-none d-sm-table-cell">{p.winnerIds.map(name).join(' & ')}</td>
                   </tr>
                 ))}
               </tbody>

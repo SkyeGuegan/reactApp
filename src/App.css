@@ -696,3 +696,7 @@
 .player-line .pl-name { font-weight: 500; }
 .player-line.won .pl-name, .player-line.won .pl-num { font-weight: 700; }
 .player-line .pl-num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 575.98px) {
+  .player-lines { column-gap: 8px; }
+  .player-line .pl-text { max-width: 8.5em; overflow: hidden; text-overflow: ellipsis; }
+}
