@@ -450,6 +450,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
           onHide={() => setShowRecord(false)}
           games={games}
           players={players}
+          plays={plays}
           onSave={handleRecordPlay}
           onAddGuest={handleAddGuest}
           playerNames={playerNames}

@@ -15,7 +15,7 @@ export function gameStandings(game, corePlayers, gameScores, played, { plays = [
   const coreRows = corePlayers.map(player => {
     const cell = gameScores.find(gs => gs.gameId === game.id && gs.playerId === player.id);
     const wins = cell ? cell.score : 0;
-    return { player, wins, rate: played > 0 ? wins / played : null, guest: false };
+    return { player, wins, played, rate: played > 0 ? wins / played : null, guest: false };
   });
 
   const guestStats = new Map();

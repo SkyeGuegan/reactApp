@@ -26,7 +26,28 @@ const toPlayedAt = (ymd) => {
 // onSave({ gameId, playedAt, playerIds, winnerIds, details, allPlayers }) resolves
 // truthy on success; onAddGuest(initials, name) resolves to the new player.
 // playerNames (Map id → full name, admin-only) shows on hover and in clashes.
-export default function RecordPlayDialog({ show, onHide, games, players, onSave, onAddGuest, playerNames = new Map(), initialGameId = '' }) {
+// plays (recorded games) decide which guests show up front: the ones who play
+// this game most, then most overall; everyone else is behind "More players".
+export const FRONT_GUESTS = 3;
+export function guestOrder(guests, plays, gameId) {
+  const score = new Map(guests.map(g => [g.id, { here: 0, all: 0, last: '' }]));
+  for (const p of plays) {
+    if (p.voided || p.test) continue;
+    for (const id of p.playerIds) {
+      const s = score.get(id);
+      if (!s) continue;
+      s.all += 1;
+      if (p.gameId === gameId) s.here += 1;
+      if (p.playedAt > s.last) s.last = p.playedAt;
+    }
+  }
+  return [...guests].sort((a, b) => {
+    const x = score.get(a.id), y = score.get(b.id);
+    return y.here - x.here || y.all - x.all || (x.last < y.last ? 1 : x.last > y.last ? -1 : 0) || a.initials.localeCompare(b.initials);
+  }).map(g => ({ player: g, played: score.get(g.id).all }));
+}
+
+export default function RecordPlayDialog({ show, onHide, games, players, plays = [], onSave, onAddGuest, playerNames = new Map(), initialGameId = '' }) {
   const [gameId, setGameId] = useState('');
   const [date, setDate] = useState(todayLocal());
   const [playing, setPlaying] = useState(new Set());
@@ -38,6 +59,8 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
   const [guestName, setGuestName] = useState('');
   const [guestError, setGuestError] = useState('');
   const [extraPlayers, setExtraPlayers] = useState([]); // guests added in this dialog
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
+  const [showNewGuest, setShowNewGuest] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rawDetails, setRawDetails] = useState({}); // { playerId: { key: string } }
 
@@ -62,6 +85,8 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
     setGuest('');
     setGuestError('');
     setExtraPlayers([]);
+    setShowAllPlayers(false);
+    setShowNewGuest(false);
     setRawDetails({});
     setBusy(false);
   }, [show, coreIds, initialGameId]);
@@ -146,6 +171,17 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
     if (ok) onHide();
   }
 
+  // Guests up front: the few who play this game most (plus anyone ticked or
+  // just added); the rest and the test player are folded away.
+  const ranked = guestOrder(others.filter(p => !p.hidden), plays, gameId);
+  // While the full list is open the order stays put; ticked players move up
+  // front only once it's folded again.
+  const promoted = (id) => !showAllPlayers && playing.has(id);
+  const isFront = (r, i) => (i < FRONT_GUESTS && r.played > 0) || promoted(r.player.id) || extraPlayers.some(x => x.id === r.player.id);
+  const testers = others.filter(p => p.hidden);
+  const front = [...ranked.filter(isFront).map(r => r.player), ...testers.filter(p => promoted(p.id))];
+  const folded = [...ranked.filter((r, i) => !isFront(r, i)).map(r => r.player), ...testers.filter(p => !promoted(p.id))];
+
   const playerCheck = (p) => (
     <Form.Check
       key={p.id}
@@ -182,8 +218,19 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
         <fieldset className="mb-3">
           <legend className="fs-6 fw-semibold mb-1">Who played</legend>
           <div>{core.map(playerCheck)}</div>
-          {others.length > 0 && <div className="mt-1">{others.map(playerCheck)}</div>}
-          <div className="d-flex flex-wrap gap-2 mt-2">
+          {front.length > 0 && <div className="mt-1">{front.map(playerCheck)}</div>}
+          {showAllPlayers && folded.length > 0 && <div className="mt-1">{folded.map(playerCheck)}</div>}
+          <div className="d-flex flex-wrap gap-3 mt-1 small">
+            {folded.length > 0 && (
+              <Button variant="link" size="sm" className="p-0" aria-expanded={showAllPlayers} onClick={() => setShowAllPlayers(v => !v)}>
+                {showAllPlayers ? 'Fewer players' : `More players (${folded.length})`}
+              </Button>
+            )}
+            {!showNewGuest && (
+              <Button variant="link" size="sm" className="p-0" onClick={() => setShowNewGuest(true)}>＋ New guest</Button>
+            )}
+          </div>
+          {showNewGuest && <div className="d-flex flex-wrap gap-2 mt-2">
             <Form.Control
               size="sm"
               value={guest}
@@ -204,7 +251,7 @@ export default function RecordPlayDialog({ show, onHide, games, players, onSave,
               style={{ maxWidth: 200 }}
             />
             <Button size="sm" variant="outline-secondary" disabled={!guest.trim() || busy} onClick={addGuest}>Add guest</Button>
-          </div>
+          </div>}
           {guestError && <div className="text-danger small mt-1" role="alert">{guestError}</div>}
         </fieldset>
 

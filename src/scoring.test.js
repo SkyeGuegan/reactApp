@@ -1,4 +1,4 @@
-import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, bestPlayers, winnerRuleLabel, scoringStats, setupLabel, setupStats, withDetails, suggestedFor, takenChoices, optionsOf, GAME_KEY, SUGGESTED, PRESETS } from './scoring';
+import { parseJson, fieldsOf, detailsOf, fieldKey, cleanDetails, topScorers, bestPlayers, winnerRuleLabel, scoringStats, setupLabel, setupStats, withDetails, suggestedFor, takenChoices, placings, playerScoringStats, playerCounts, withPlayerCount, onlineRatesFor, optionsOf, GAME_KEY, SUGGESTED, PRESETS } from './scoring';
 
 test('parseJson accepts strings, objects and junk', () => {
   expect(parseJson('[1,2]', [])).toEqual([1, 2]);
@@ -117,4 +117,59 @@ test('setupStats counts every game, not just ones with points noted', () => {
   const [base] = setupStats(catan, plays);
   expect(base).toMatchObject({ setup: 'Base game', games: 2, avgWin: 10 });
   expect(base.wins.get('a')).toBe(2);
+});
+
+describe('richer stats (Terra Mystica style)', () => {
+  const game = { id: 'g', name: 'Terra Mystica', scoreFields: JSON.stringify(SUGGESTED['terra mystica']) };
+  const play = (id, rows, winners, extra = {}) => ({ id, gameId: 'g', playedAt: '2026-01-0' + id + 'T12:00:00Z', playerIds: Object.keys(rows), winnerIds: winners, details: JSON.stringify(rows), ...extra });
+  const plays = [
+    play('1', { a: { faction: 'Witches', points: 130 }, b: { faction: 'Nomads', points: 110 }, c: { faction: 'Giants', points: 90 } }, ['a']),
+    play('2', { a: { faction: 'Nomads', points: 100 }, b: { faction: 'Witches', points: 120 }, c: { faction: 'Giants', points: 100 }, d: { faction: 'Auren', points: 80 } }, ['b']),
+    play('3', { a: { faction: 'Witches', points: 200 }, b: { faction: 'Nomads', points: 10 } }, ['a'], { test: true }),
+  ];
+
+  test('placings: ties share the better place; margin is vs the table average', () => {
+    const p = placings(plays[1], { key: 'points' });
+    expect(p.b).toEqual({ score: 120, place: 1, diff: 120 - 100 });
+    expect(p.a.place).toBe(2);
+    expect(p.c.place).toBe(2);
+    expect(p.d.place).toBe(4);
+    const low = placings(plays[1], { key: 'points', lowWins: true });
+    expect(low.d.place).toBe(1);
+    expect(low.d.diff).toBe(20); // 20 under the average is good when lowest wins
+  });
+
+  test('faction rows get average place, score, margin and best', () => {
+    const [faction] = scoringStats(game, plays);
+    const witches = faction.rows.find(r => r.value === 'Witches');
+    expect(witches).toMatchObject({ played: 2, wins: 2, avgPlace: 1, avgScore: 125, best: { value: 130, playerId: 'a' } });
+    expect(witches.avgDiff).toBeCloseTo(((130 - 110) + (120 - 100)) / 2);
+    const giants = faction.rows.find(r => r.value === 'Giants');
+    expect(giants.avgPlace).toBe(2.5);
+  });
+
+  test('player rows: most played and most-winning faction; test plays ignored', () => {
+    const rows = playerScoringStats(game, plays);
+    expect(rows.map(r => r.playerId)).toEqual(['a', 'b', 'c', 'd']);
+    const a = rows[0];
+    expect(a).toMatchObject({ played: 2, wins: 1, avgPlace: 1.5, avgScore: 115, best: { value: 130 } });
+    expect(a.mostWins).toEqual({ value: 'Witches', played: 1, wins: 1 });
+    expect(rows[2].mostWins).toBeNull();
+    expect(rows[2].mostPlayed).toEqual({ value: 'Giants', played: 2, wins: 0 });
+  });
+
+  test('player counts and filtering', () => {
+    expect(playerCounts(game, plays)).toEqual([3, 4]);
+    expect(withPlayerCount(plays, 4).map(p => p.id)).toEqual(['2']);
+    expect(withPlayerCount(plays, null)).toBe(plays);
+  });
+
+  test('online win rates only for the matching game and field', () => {
+    const [faction, points] = SUGGESTED['terra mystica'];
+    expect(onlineRatesFor(game, faction).rates.Darklings).toBeCloseTo(0.327, 3);
+    expect(onlineRatesFor(game, points)).toBeNull();
+    expect(onlineRatesFor({ name: 'Root' }, faction)).toBeNull();
+    // every Terra Mystica faction has an online rate
+    expect(faction.options.every(o => onlineRatesFor(game, faction).rates[o.name] > 0)).toBe(true);
+  });
 });

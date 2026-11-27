@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Badge, Button } from 'react-bootstrap';
+import { Table, Badge, Button, ButtonGroup } from 'react-bootstrap';
 import TrendsChart from './TrendsChart';
 import { gameStandings, playsForGame, fmtPercent } from './gameStats';
 import { fmtWins } from './plays';
 import { fmtPlayDate } from './dates';
-import { fieldsOf, scoringStats, setupStats, optionFor } from './scoring';
+import { fieldsOf, scoringStats, setupStats, optionFor, playerScoringStats, playerCounts, withPlayerCount, onlineRatesFor, gameLinks } from './scoring';
 import { Swatch, PlayerDetails } from './Swatch';
 import SetupTag from './SetupTag';
 
@@ -16,6 +16,8 @@ import SetupTag from './SetupTag';
 export default function GamePage({ game, corePlayers, players, gameScores, plays, played, isAdmin, onRecord, onSetArt, onSetScoring }) {
   const [artFailed, setArtFailed] = useState(false);
   useEffect(() => setArtFailed(false), [game.imageUrl]);
+  const [count, setCount] = useState(null); // score stats for n-player games only (null = all)
+  useEffect(() => setCount(null), [game.id]);
   useEffect(() => {
     const prev = document.title;
     document.title = `${game.name} · The Scoreboard`;
@@ -33,8 +35,16 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
   const earlier = Math.round(game.baselinePlays || 0);
 
   const fields = fieldsOf(game);
-  const stats = scoringStats(game, plays);
-  const setups = setupStats(game, plays);
+  const counts = playerCounts(game, plays);
+  const countPlays = withPlayerCount(plays, counts.includes(count) ? count : null);
+  const gamesWith = (n) => withPlayerCount(plays, n).filter(p => p.gameId === game.id && !p.voided && !p.test).length;
+  const stats = scoringStats(game, countPlays);
+  const setups = setupStats(game, countPlays);
+  const people = playerScoringStats(game, countPlays).filter(r => r.avgScore != null || r.mostPlayed);
+  const place = (n) => (n == null ? '—' : n.toFixed(1));
+  const whole = (n) => (n == null ? '—' : String(Math.round(n)));
+  const signed = (n) => (n == null ? '—' : `${n >= 0.5 ? '+' : n <= -0.5 ? '−' : ''}${Math.abs(Math.round(n))}`);
+  const choice = (field, c) => c && <>{(o => o && <Swatch color={o.color} />)(optionFor(field, c.value))}{c.value}</>;
   const hasScoringData = stats.some(s => (s.type === 'number' ? s.best : s.rows.length)) || setups.length > 0;
   // "SG 2, NI 1" — who has won with a setup, most first.
   const winsText = (wins) => [...wins.entries()].sort((a, b) => b[1] - a[1]).map(([id, w]) => `${name(id)} ${fmtWins(w)}`).join(', ');
@@ -42,6 +52,84 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
   // "SG (Witches, 142)" — a player's initials with whatever details were noted.
   const withDetails = (play, id) => <PlayerDetails play={play} game={game} playerId={id} label={name(id)} />;
   const joined = (items) => items.map((x, i) => <React.Fragment key={i}>{i > 0 && ', '}{x}</React.Fragment>);
+
+  // A choice field's table (e.g. factions): games, wins and win rate, plus
+  // online win rates when known and place/score/margin/best when scored.
+  const choiceTable = (s) => {
+    const online = onlineRatesFor(game, s.field);
+    const scored = s.rows.some(r => r.avgScore != null);
+    return (
+      <React.Fragment key={s.field.key}>
+        <Table size="sm" responsive className="small mb-1 stats-table">
+          <thead><tr>
+            <th>{s.field.label}</th><th className="text-center">Games</th><th className="text-center">Wins</th><th className="text-center">Win rate</th>
+            {online && <th className="text-center" title={`Win rate in online games on ${online.source}`}>Online</th>}
+            {scored && <>
+              <th className="text-center" title="Average finishing place (1 = first)">Avg place</th>
+              <th className="text-center">Avg {s.scoreField.label.toLowerCase()}</th>
+              <th className="text-center" title="Average points above or below the table's average">vs table</th>
+              <th>Best</th>
+            </>}
+          </tr></thead>
+          <tbody>
+            {s.rows.map(r => (
+              <tr key={r.value}>
+                <td className="text-nowrap">{(o => o && <Swatch color={o.color} />)(optionFor(s.field, r.value))}{r.value}</td>
+                <td className="text-center">{r.played}</td>
+                <td className="text-center">{fmtWins(r.wins)}</td>
+                <td className="text-center">{fmtPercent(r.wins / r.played)}</td>
+                {online && <td className="text-center text-muted">{fmtPercent(online.rates[r.value])}</td>}
+                {scored && <>
+                  <td className="text-center">{place(r.avgPlace)}</td>
+                  <td className="text-center">{whole(r.avgScore)}</td>
+                  <td className={`text-center ${r.avgDiff > 0 ? 'stat-up' : r.avgDiff < 0 ? 'stat-down' : ''}`}>{signed(r.avgDiff)}</td>
+                  <td className="text-nowrap">{r.best ? <>{r.best.value} <span className="text-muted">{name(r.best.playerId)}</span></> : '—'}</td>
+                </>}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+        <p className="text-muted small mb-3">
+          {scored && <>Avg place: 1 = first. vs table: points above or below the table's average that game. </>}
+          {online && <>Online: win rate in about 155,000 online games on <a href={online.url} target="_blank" rel="noopener noreferrer">{online.source}</a>.</>}
+        </p>
+      </React.Fragment>
+    );
+  };
+
+  // Per-player table: games, wins, average place and score, best score, and
+  // most-played / most-winning choice (e.g. faction).
+  const playerTable = () => {
+    const field = people[0].choiceField;
+    return (
+      <>
+        <h4 className="score-stat-label mt-3 mb-1">By player <span className="text-lowercase fw-normal">· recorded games with scores, including ones not on the table</span></h4>
+        <Table size="sm" responsive className="small mb-2 stats-table">
+          <thead><tr>
+            <th>Player</th><th className="text-center">Games</th><th className="text-center">Wins</th>
+            <th className="text-center">Avg place</th><th className="text-center">Avg</th><th className="text-center">Best</th>
+            {field && <><th>Most played</th><th>Most wins with</th></>}
+          </tr></thead>
+          <tbody>
+            {people.map(r => (
+              <tr key={r.playerId}>
+                <td className="fw-semibold">{name(r.playerId)}</td>
+                <td className="text-center">{r.played}</td>
+                <td className="text-center">{fmtWins(r.wins)}</td>
+                <td className="text-center">{place(r.avgPlace)}</td>
+                <td className="text-center">{whole(r.avgScore)}</td>
+                <td className="text-center">{r.best ? r.best.value : '—'}</td>
+                {field && <>
+                  <td className="text-nowrap">{r.mostPlayed ? <>{choice(field, r.mostPlayed)} <span className="text-muted">×{r.mostPlayed.played}</span></> : '—'}</td>
+                  <td className="text-nowrap">{r.mostWins ? <>{choice(field, r.mostWins)} <span className="text-muted">{fmtWins(r.mostWins.wins)} of {r.mostWins.played}</span></> : '—'}</td>
+                </>}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </>
+    );
+  };
 
   return (
     <div className="game-page text-start">
@@ -61,6 +149,13 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
               View on BoardGameGeek ↗
             </a>
           )}
+          {gameLinks(game).length > 0 && (
+            <div className="game-links small">
+              {gameLinks(game).map(l => (
+                <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" title={l.site}>{l.label} ↗</a>
+              ))}
+            </div>
+          )}
           {isAdmin && (
             <div className="d-flex gap-2 mt-3 flex-wrap">
               <Button size="sm" variant="dark" onClick={onRecord}>＋ Record a game</Button>
@@ -73,7 +168,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
 
       <h3 className="manage-subtitle mt-4">Standings</h3>
       <Table size="sm" className="game-standings mb-1">
-        <thead><tr><th>Player</th><th className="text-center">Wins</th><th className="text-center">Win rate</th><th className="w-50" aria-hidden="true" /></tr></thead>
+        <thead><tr><th>Player</th><th className="text-center">Played</th><th className="text-center">Wins</th><th className="text-center">Win rate</th><th className="w-50" aria-hidden="true" /></tr></thead>
         <tbody>
           {rows.map(r => (
             <tr key={r.player.id}>
@@ -81,6 +176,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
                 {r.player.initials}{leaderIds.has(r.player.id) && ' 👑'}
                 {r.guest && <span className="text-muted small fw-normal ms-2">guest</span>}
               </td>
+              <td className="text-center">{r.played}</td>
               <td className="text-center">{fmtWins(r.wins)}</td>
               <td className="text-center">{fmtPercent(r.rate)}</td>
               <td aria-hidden="true">
@@ -97,7 +193,18 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
 
       {fields.length > 0 && (
         <>
-          <h3 className="manage-subtitle mt-4">Scores</h3>
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4 mb-2">
+            <h3 className="manage-subtitle m-0">Scores</h3>
+            {counts.length > 1 && (
+              <ButtonGroup size="sm" aria-label="Player count">
+                {[null, ...counts].map(n => (
+                  <Button key={n || 'all'} variant={(count || null) === n ? 'dark' : 'outline-secondary'} onClick={() => setCount(n)} title={n ? `${gamesWith(n)} ${n}-player ${gamesWith(n) === 1 ? 'game' : 'games'}` : undefined}>
+                    {n ? `${n}p` : 'All'}
+                  </Button>
+                ))}
+              </ButtonGroup>
+            )}
+          </div>
           {!hasScoringData ? (
             <p className="text-muted small">
               No {fields.map(f => f.label.toLowerCase()).join(' or ')} noted yet. They're optional when recording a game.
@@ -118,21 +225,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
                   </div>
                 )
               ) : (
-                s.rows.length > 0 && (
-                  <Table key={s.field.key} size="sm" className="small mb-2">
-                    <thead><tr><th>{s.field.label}</th><th className="text-center">Played</th><th className="text-center">Wins</th><th className="text-center">Win rate</th></tr></thead>
-                    <tbody>
-                      {s.rows.map(r => (
-                        <tr key={r.value}>
-                          <td>{(o => o && <Swatch color={o.color} />)(optionFor(s.field, r.value))}{r.value}</td>
-                          <td className="text-center">{r.played}</td>
-                          <td className="text-center">{fmtWins(r.wins)}</td>
-                          <td className="text-center">{fmtPercent(r.wins / r.played)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )
+                s.rows.length > 0 && choiceTable(s)
               )))}
               {setups.length > 0 && (
                 <Table size="sm" responsive className="small mb-2">
@@ -161,6 +254,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
                   </tbody>
                 </Table>
               )}
+              {people.length > 0 && playerTable()}
             </div>
           )}
         </>

@@ -242,28 +242,139 @@ function numberStat(f, plays) {
 
 const livePlays = (game, plays) => plays.filter(p => p.gameId === game.id && !p.voided && !p.test);
 
+// The game's main score: its first per-player number field (or null).
+export const mainScoreField = (game) => playerFields(game).find(f => f.type === 'number') || null;
+
+// Each scored player's place in a play by field f (1 = best; ties share the
+// better place) and their margin over the table's average score (positive =
+// better, also for lowest-wins). Needs at least two scores.
+// Returns { [playerId]: { score, place, diff } }.
+export function placings(play, f) {
+  if (!f) return {};
+  const scores = Object.entries(playerDetailsOf(play)).map(([pid, row]) => [pid, row[f.key]]).filter(([, v]) => typeof v === 'number');
+  if (scores.length < 2) return {};
+  const avg = average(scores.map(([, v]) => v));
+  const sign = f.lowWins ? -1 : 1;
+  return Object.fromEntries(scores.map(([pid, v]) => [pid, {
+    score: v,
+    place: 1 + scores.filter(([, w]) => better(f, w, v)).length,
+    diff: sign * (v - avg),
+  }]));
+}
+
+// Player counts of a game's recorded plays, ascending ([3, 4, 5]).
+export const playerCounts = (game, plays) =>
+  [...new Set(livePlays(game, plays).map(p => p.playerIds.length))].sort((a, b) => a - b);
+
+// Only the plays with n players (all plays when n is falsy).
+export const withPlayerCount = (plays, n) => (n ? plays.filter(p => p.playerIds.length === n) : plays);
+
+// Running totals for a group of results (a faction, a player).
+const tally = () => ({ played: 0, wins: 0, places: [], scores: [], diffs: [], best: null });
+function addResult(t, f, play, pid, placing) {
+  t.played += 1;
+  if (play.winnerIds.includes(pid)) t.wins += 1 / play.winnerIds.length;
+  if (placing) {
+    t.places.push(placing.place);
+    t.diffs.push(placing.diff);
+  }
+  const row = playerDetailsOf(play)[pid];
+  const v = f && row ? row[f.key] : undefined;
+  if (typeof v === 'number') {
+    t.scores.push(v);
+    if (!t.best || better(f, v, t.best.value)) t.best = { value: v, playerId: pid, playedAt: play.playedAt };
+  }
+}
+const summary = ({ places, scores, diffs, ...rest }) =>
+  ({ ...rest, avgPlace: average(places), avgScore: average(scores), avgDiff: average(diffs) });
+
 // Per-game stats from recorded plays' per-player details.
 //  - number fields: best score (highest, or lowest when lowWins) and average winning score
-//  - text fields: per value, games played and won with it (e.g. faction win rates)
+//  - text fields: per value (e.g. faction), games played and won with it,
+//    average place, average main score, average margin over the table and
+//    the best main score with it (who and when)
 export function scoringStats(game, plays) {
   const live = livePlays(game, plays);
+  const main = mainScoreField(game);
+  const placed = new Map(live.map(p => [p.id, placings(p, main)]));
   return playerFields(game).map(f => {
     if (f.type === 'number') return { field: f, type: 'number', ...numberStat(f, live) };
     const byValue = new Map();
     for (const p of live) {
       for (const [pid, row] of Object.entries(playerDetailsOf(p))) {
         for (const v of [].concat(row[f.key] || [])) {
-          const s = byValue.get(v) || { value: v, played: 0, wins: 0 };
-          s.played += 1;
-          if (p.winnerIds.includes(pid)) s.wins += 1 / p.winnerIds.length;
-          byValue.set(v, s);
+          if (!byValue.has(v)) byValue.set(v, { value: v, ...tally() });
+          addResult(byValue.get(v), main, p, pid, placed.get(p.id)[pid]);
         }
       }
     }
-    const rows = [...byValue.values()].sort((a, b) => b.wins - a.wins || b.played - a.played || a.value.localeCompare(b.value));
-    return { field: f, type: 'text', rows };
+    const rows = [...byValue.values()].map(summary)
+      .sort((a, b) => b.wins - a.wins || b.played - a.played || a.value.localeCompare(b.value));
+    return { field: f, type: 'text', scoreField: main, rows };
   });
 }
+
+// Per-player stats from recorded plays with details: games, wins, average
+// place / score / margin, best score, and for the first per-player choice
+// field (e.g. faction) their most-played choice and the one they've won most
+// with. Rows sorted by wins, then games.
+export function playerScoringStats(game, plays) {
+  const main = mainScoreField(game);
+  const choice = playerFields(game).find(f => f.type === 'text' && !f.multi) || null;
+  const rows = new Map();
+  for (const p of livePlays(game, plays)) {
+    const placed = placings(p, main);
+    for (const [pid, row] of Object.entries(playerDetailsOf(p))) {
+      if (!rows.has(pid)) rows.set(pid, { playerId: pid, ...tally(), choices: new Map() });
+      const r = rows.get(pid);
+      addResult(r, main, p, pid, placed[pid]);
+      const v = choice && row[choice.key];
+      if (v) {
+        const c = r.choices.get(v) || { value: v, played: 0, wins: 0 };
+        c.played += 1;
+        if (p.winnerIds.includes(pid)) c.wins += 1 / p.winnerIds.length;
+        r.choices.set(v, c);
+      }
+    }
+  }
+  return [...rows.values()].map(({ choices, ...r }) => {
+    const list = [...choices.values()];
+    const mostPlayed = [...list].sort((a, b) => b.played - a.played || b.wins - a.wins || a.value.localeCompare(b.value))[0] || null;
+    const mostWins = list.filter(c => c.wins > 0).sort((a, b) => b.wins - a.wins || a.played - b.played || a.value.localeCompare(b.value))[0] || null;
+    return { ...summary(r), choiceField: choice, mostPlayed, mostWins };
+  }).sort((a, b) => b.wins - a.wins || b.played - a.played);
+}
+
+// Win rates from terra.snellman.net (all finished 3-5 player online games,
+// about 155,000; read 2026-11-27), to compare the group's faction win rates
+// with online play. Keyed by game name; applies to one field.
+export const ONLINE_WIN_RATES = {
+  'terra mystica': {
+    field: 'faction',
+    source: 'terra.snellman.net',
+    url: 'https://terra.snellman.net/stats/',
+    rates: {
+      Darklings: 0.3269, Cultists: 0.3161, Engineers: 0.3104, Mermaids: 0.2752, Witches: 0.2723,
+      'Chaos Magicians': 0.2635, Riverwalkers: 0.2513, Swarmlings: 0.2441, Nomads: 0.2437,
+      Shapeshifters: 0.2398, 'Ice Maidens': 0.2370, Acolytes: 0.2322, Halflings: 0.2301,
+      Dragonlords: 0.2276, Yetis: 0.2235, Dwarves: 0.2232, Alchemists: 0.2092, Auren: 0.2013,
+      Giants: 0.1902, Fakirs: 0.1683,
+    },
+  },
+};
+// Outside guides and stats worth a link from a game's page.
+export const GAME_LINKS = {
+  'terra mystica': [
+    { label: 'Faction stats', site: 'terra.snellman.net', url: 'https://terra.snellman.net/stats/' },
+    { label: 'Faction strategy (base game)', site: 'gaming-strategy.com', url: 'https://www.gaming-strategy.com/board-games/terra-mystica/faction-strategy/' },
+  ],
+};
+export const gameLinks = (game) => (game && GAME_LINKS[game.name.trim().toLowerCase()]) || [];
+
+export const onlineRatesFor = (game, field) => {
+  const o = game && ONLINE_WIN_RATES[game.name.trim().toLowerCase()];
+  return o && field && o.field === field.key ? o : null;
+};
 
 // The game-level setup of a play, e.g. "Seafarers + Cities & Knights", or the
 // field's emptyLabel ("Base game") when nothing was picked. null if the game
