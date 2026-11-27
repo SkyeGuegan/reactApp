@@ -12,7 +12,6 @@ import RecordPlayDialog from './RecordPlayDialog';
 import AllGames from './AllGames';
 import PlayersView from './PlayersView';
 import PlayerPage from './PlayerPage';
-import HomeSummary from './HomeSummary';
 import { corePlayers, playedCounts as computePlayedCounts, gamesWonByGuests } from './plays';
 import ThemeMenu from './ThemeMenu';
 import { useTheme } from './theme';
@@ -416,21 +415,16 @@ function Scoreboard({ themeMode, onThemeChange }) {
       ) : (
       <div className="board-card">
       {view === 'scoreboard'
-        ? <>
-            {!loading && !loadError && (
-              <HomeSummary games={games} players={players} corePlayers={tablePlayers} gameScores={gameScores} plays={plays} playedCounts={playedCounts} isAdmin={isAdmin} />
-            )}
-            <TableComponent
-              games={sortedGames}
-              players={sortedPlayers}
-              gameScores={gameScores}
-              loading={loading}
-              error={loadError}
-              onIncrement={handleIncrement}
-              playedCounts={playedCounts}
-              guestWonGames={guestWonGames}
-            />
-          </>
+        ? <TableComponent
+            games={sortedGames}
+            players={sortedPlayers}
+            gameScores={gameScores}
+            loading={loading}
+            error={loadError}
+            onIncrement={handleIncrement}
+            playedCounts={playedCounts}
+            guestWonGames={guestWonGames}
+          />
         : view === 'players'
           ? <PlayersView plays={plays} players={players} games={games} gameScores={gameScores} isAdmin={isAdmin} />
           : view === 'trends'

@@ -711,8 +711,6 @@
 /* Header: Record a game for admins; the greeting gives way on phones. */
 .header-record { font-weight: 600; }
 @media (max-width: 1199.98px) { .header-hello { display: none; } }
-/* Scoreboard: the at-a-glance strip above the main table. */
-.home-glance { padding: 12px 12px 4px; text-align: left; }
 /* Player links (initials) and the player page header. */
 .player-link { color: inherit; text-decoration: none; }
 .player-link:hover, .player-link:focus-visible { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }

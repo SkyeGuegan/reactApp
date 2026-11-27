@@ -10,7 +10,7 @@ A win tally for our game nights: who has won which game, overall totals, and how
 
 Every view has its own address (hash links), so Back, refresh and sharing a link all work.
 
-- **Scoreboard** (`#/`): at-a-glance tiles (leader, last game, games this month, current win streak, most played) above the main table: wins per game for each regular, a Played column and a Totals row. The overall leader gets a crown; the best score in each game is bold; shared wins give half points.
+- **Scoreboard** (`#/`): the main table: wins per game for each regular, a Played column and a Totals row. The overall leader gets a crown; the best score in each game is bold; shared wins give half points.
 - **Players** (`#/players`): everyone's played / wins / win rate, either **All time** (games from before individual recording count as games between the regulars, since only the winner was kept) or **All recorded** (individually recorded games, guests included).
 - **Player pages** (`#/player/sg`): a player's record in every game (sortable), best and most-played games, win streaks, head-to-head against everyone they've played, and their recorded games with where they finished.
 - **Game pages** (`#/game/terra-mystica`): box art and links (BoardGameGeek, plus guides for some games), at-a-glance numbers, a player-count filter, standings (main scoreboard or all recorded games), sortable stats per choice (e.g. faction win rates, average place, points against the table average, best score, online win rates for Terra Mystica), setups (e.g. Catan expansions), records (biggest win, closest game), head-to-head, win streaks, wins and winning score over time, and recent games.

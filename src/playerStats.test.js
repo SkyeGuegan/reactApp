@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { playerGameRows, playerHeadToHead, playerPlays } from './playerStats';
-import { homeSummary } from './HomeSummary';
 import PlayerPage from './PlayerPage';
 import { SUGGESTED } from './scoring';
 
@@ -44,16 +43,6 @@ test('playerHeadToHead adds up every game; playerPlays skips test games', () => 
   const h = playerHeadToHead(SG, players, games, plays);
   expect(h.map(r => [r.opponent.initials, r.ahead, r.behind, r.games])).toEqual([['MG', 1, 2, 3], ['LG', 0, 1, 1]]);
   expect(playerPlays(SG, plays).map(p => p.id)).toEqual(['3', '2', '1']);
-});
-
-test('homeSummary: leader, last game, this month, streak, most played', () => {
-  const s = homeSummary({ games, corePlayers: core, gameScores, plays, playedCounts, now: new Date('2026-11-20T12:00:00Z') });
-  expect(s.leaders.map(p => p.id)).toEqual(['mg']);
-  expect(s.leaderWins).toBe(5);
-  expect(s.last.id).toBe('3');
-  expect(s.thisMonth).toBe(3);
-  expect(s.streak).toBeNull(); // nobody has 2+ in a row
-  expect(s.mostPlayed.game.name).toBe('Dominion');
 });
 
 test('PlayerPage: glance, by-game table with links, head to head, recorded games', () => {
