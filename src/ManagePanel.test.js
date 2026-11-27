@@ -73,11 +73,11 @@ test('new players are guests unless "Regular player" is ticked', async () => {
 test('roster groups regulars, guests and the test player, with full names', () => {
   setup({
     players: [...players, { id: 'g', initials: 'AB' }, { id: 't', initials: 'TEST', hidden: true }],
-    playerNames: new Map([['p1', 'Skye Guegan']]),
+    playerNames: new Map([['p1', 'Sam Garner']]),
   });
   fireEvent.click(screen.getByRole('tab', { name: 'Roster' }));
   expect(screen.getAllByText(/^(Regulars|Guests|Test)$/).map(e => e.textContent)).toEqual(['Regulars', 'Guests', 'Test']);
-  expect(screen.getByText('Skye Guegan')).toBeInTheDocument();
+  expect(screen.getByText('Sam Garner')).toBeInTheDocument();
   expect(screen.getByText('no games yet')).toBeInTheDocument();
   expect(screen.getByText('admins only')).toBeInTheDocument();
 });

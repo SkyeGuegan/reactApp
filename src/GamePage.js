@@ -8,7 +8,10 @@ import { fmtPlayDate } from './dates';
 import { fieldsOf, scoringStats, setupStats, optionFor, optionsOf, playerScoringStats, playerCounts, withPlayerCount, onlineRatesFor, gameLinks, playerDetailsOf } from './scoring';
 import { recordedPlays, gameRecords, headToHead, winStreaks } from './insights';
 import { Swatch, PlayerDetails, PlayerLines } from './Swatch';
+import { playerHref } from './route';
 import SetupTag from './SetupTag';
+import Tile from './Tile';
+import { sortRows, activeSort, nextSort, SortHead } from './sortTable';
 
 // Choices with fewer games than this can be hidden from a choice table, so a
 // single lucky game doesn't top the win rates.
@@ -21,52 +24,6 @@ const whole = (n) => (n == null ? '—' : String(Math.round(n)));
 const tenth = (n) => (n == null ? '—' : String(Math.round(n * 10) / 10));
 const signed = (n) => (n == null ? '—' : `${n >= 0.5 ? '+' : n <= -0.5 ? '−' : ''}${Math.abs(Math.round(n))}`);
 const upDown = (n) => (n > 0 ? 'stat-up' : n < 0 ? 'stat-down' : '');
-
-// Sort rows by one column; nulls always last. dir: 'asc' | 'desc'.
-function sortRows(rows, get, dir) {
-  const k = dir === 'asc' ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const x = get(a); const y = get(b);
-    if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
-    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * k;
-  });
-}
-
-// The column a sort state ({ key, dir }) points at, falling back to
-// fallbackKey (descending) when that column isn't shown.
-function activeSort(cols, sort, fallbackKey) {
-  const col = cols.find(c => c.key === sort.key) || cols.find(c => c.key === fallbackKey);
-  return { col, dir: col.key === sort.key ? sort.dir : 'desc' };
-}
-// Clicking the sorted column flips it; another column starts in its natural
-// direction (c.dir, default descending: biggest first).
-const nextSort = (prev, c) => (prev.key === c.key ? { key: c.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key, dir: c.dir || 'desc' });
-
-// Clickable column headers with ▲/▼ on the sorted one.
-function SortHead({ cols, col, dir, onSort }) {
-  return (
-    <thead><tr>
-      {cols.map(c => (
-        <th key={c.key} className={c.left ? '' : 'text-center'} title={c.title} aria-sort={c.key === col.key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-          <button type="button" className={`sort-th${c.key === col.key ? ' on' : ''}`} onClick={() => onSort(c)}>
-            {c.label}<span className="sort-mark" aria-hidden="true">{c.key === col.key ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span>
-          </button>
-        </th>
-      ))}
-    </tr></thead>
-  );
-}
-
-// A small headline number: label, value, and a line of detail.
-function Tile({ label, value, sub }) {
-  return (
-    <div className="glance-tile">
-      <span className="score-stat-label">{label}</span>
-      <span className="glance-value">{value}</span>
-      {sub && <span className="glance-sub">{sub}</span>}
-    </div>
-  );
-}
 
 // One game's page, top to bottom:
 //   header (box art, links, admin buttons) · at a glance (headline numbers)
@@ -96,6 +53,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
 
   const fmtDay = (iso) => fmtPlayDate(iso, isAdmin); // exact day for admins, month for visitors
   const byId = new Map(players.map(p => [p.id, p.initials]));
+  const byPlayer = new Map(players.map(p => [p.id, p]));
   const name = (id) => byId.get(id) || '?';
   const coreIds = new Set(corePlayers.map(p => p.id));
   const earlier = Math.round(game.baselinePlays || 0);
@@ -176,7 +134,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
     const s = choiceStats[0];
     const pool = s.rows.some(r => r.played >= MIN_GAMES) ? s.rows.filter(r => r.played >= MIN_GAMES) : s.rows;
     const top = [...pool].sort((a, b) => b.wins - a.wins || b.wins / b.played - a.wins / a.played)[0];
-    if (top && top.wins > 0) tiles.push(<Tile key="top" label={`Top ${s.field.label.toLowerCase()}`} value={<span className="text-nowrap">{choice(s.field, top)}</span>} sub={`${fmtWins(top.wins)} wins in ${top.played}`} />);
+    if (top && top.wins > 0) tiles.push(<Tile key="top" label={`Top ${s.field.label.toLowerCase()}`} value={choice(s.field, top)} sub={`${fmtWins(top.wins)} wins in ${top.played}`} />);
   }
   if (streaks.length && streaks[0].longest > 1) {
     tiles.push(<Tile key="streak" label="Longest win streak" value={`${name(streaks[0].playerId)} · ${streaks[0].longest}`} sub={`${fmtDay(streaks[0].from)} – ${fmtDay(streaks[0].to)}`} />);
@@ -191,7 +149,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
           {standings.map(r => (
             <tr key={r.player.id}>
               <td className="fw-semibold">
-                {r.player.initials}{leaderIds.has(r.player.id) && ' 👑'}
+                <a className="player-link" href={playerHref(r.player)}>{r.player.initials}</a>{leaderIds.has(r.player.id) && ' 👑'}
                 {r.guest && <span className="text-muted small fw-normal ms-2">guest</span>}
               </td>
               <td className="text-center">{r.played}</td>
@@ -236,7 +194,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
           <tbody>
             {sortRows(people, col.get, dir).map(r => (
               <tr key={r.playerId}>
-                <td className="fw-semibold text-nowrap">{name(r.playerId)}{!coreIds.has(r.playerId) && <span className="text-muted small fw-normal ms-2">guest</span>}</td>
+                <td className="fw-semibold text-nowrap">{byPlayer.get(r.playerId) ? <a className="player-link" href={playerHref(byPlayer.get(r.playerId))}>{name(r.playerId)}</a> : name(r.playerId)}{!coreIds.has(r.playerId) && <span className="text-muted small fw-normal ms-2">guest</span>}</td>
                 <td className="text-center">{r.played}</td>
                 <td className="text-center">{fmtWins(r.wins)}</td>
                 <td className="text-center">{fmtPercent(r.played ? r.wins / r.played : null)}</td>
@@ -513,7 +471,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
                     <td className="text-nowrap">
                       {fmtDay(p.playedAt)}
                       {p.test && <div><Badge bg="secondary">test</Badge></div>}
-                      {!p.test && !p.counted && <div><Badge bg="" className="badge-soft" title="Not everyone at the table played">not on table</Badge></div>}
+                      {!p.test && !p.counted && <div><Badge bg="" className="badge-soft" title="A regular didn't play, so it doesn't change the main scoreboard">not on scoreboard</Badge></div>}
                     </td>
                     <td>
                       {PlayerLines({ play: p, game, label: name }) || joined(p.playerIds.map(id => withDetails(p, id)))}

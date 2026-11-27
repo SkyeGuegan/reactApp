@@ -19,7 +19,7 @@ const toPlayedAt = (ymd) => {
 
 // Admin dialog for recording one game: which game, when, who played, who won.
 // Core players start ticked. Guests can be added inline (saved as non-core
-// players). The footer explains whether the game will count on the main table.
+// players). The footer explains whether the game will count on the main scoreboard.
 // If the game collects scoring details, optional inputs ask for them: game-level
 // ones first (e.g. Catan expansions, as tappable covers), then a grid per player
 // (points, faction…).
@@ -155,12 +155,12 @@ export default function RecordPlayDialog({ show, onHide, games, players, plays =
 
   let status;
   if (test) status = <><Badge bg="secondary">test</Badge> Only admins will see this game; it won't affect any scores.</>;
-  else if (!counted) status = <>Won't count on the main table — {missing.join(', ')} didn't play. It still shows under All games.</>;
-  else if (!winnerIds.length) status = <>Counts on the main table. Pick the winner.</>;
+  else if (!counted) status = <>Won't count on the main scoreboard — {missing.join(', ')} didn't play. It still shows in the Game log and on the game's page.</>;
+  else if (!winnerIds.length) status = <>Counts on the main scoreboard. Pick the winner.</>;
   else if (!shares.length) status = <>Counts as a game played. A guest won, so no table wins change.</>;
   else {
     const byId = new Map(allPlayers.map(p => [p.id, p.initials]));
-    status = <>Counts on the main table: {shares.map(s => `${byId.get(s.playerId)} +${fmtWins(s.share)}`).join(', ')}.</>;
+    status = <>Counts on the main scoreboard: {shares.map(s => `${byId.get(s.playerId)} +${fmtWins(s.share)}`).join(', ')}.</>;
   }
 
   async function save() {

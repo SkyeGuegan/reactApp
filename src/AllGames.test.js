@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import AllGames from './AllGames';
+import PlayersView from './PlayersView';
 
 const players = [
   { id: 'sg', initials: 'SG', core: true }, { id: 'ni', initials: 'NI', core: true },
@@ -13,24 +14,29 @@ test('test games are hidden from non-admins', () => {
   expect(screen.getByText(/No games recorded yet/)).toBeInTheDocument();
 });
 
-test('admins with only test games see them, and an empty-state note instead of stats', () => {
-  render(<AllGames players={players} isAdmin plays={[play({ playerIds: ['sg', 'mg', 'ni', 't'], test: true })]} onVoid={() => {}} />);
-  expect(screen.getByText(/No real games recorded yet/)).toBeInTheDocument();
+test('admins see test games in the log, labelled; Players ignores them', () => {
+  const plays = [play({ playerIds: ['sg', 'mg', 'ni', 't'], test: true })];
+  render(<AllGames players={players} isAdmin plays={plays} onVoid={() => {}} />);
   expect(screen.getByText('test')).toBeInTheDocument();
+  render(<PlayersView players={players} isAdmin plays={plays} />);
+  expect(screen.getByText(/No games recorded yet/)).toBeInTheDocument();
 });
 
-test('games where someone was missing are labelled and counted in Everyone', () => {
-  render(<AllGames players={players} isAdmin={false} plays={[play({ playerIds: ['sg', 'ab'], winnerIds: ['ab'], counted: false })]} />);
-  expect(screen.getByText('not on table')).toBeInTheDocument();
+test('games where a regular was missing are labelled in the log and counted in Players', () => {
+  const plays = [play({ playerIds: ['sg', 'ab'], winnerIds: ['ab'], counted: false })];
+  render(<AllGames players={players} isAdmin={false} plays={plays} />);
+  expect(screen.getByText('not on scoreboard')).toBeInTheDocument();
+  render(<PlayersView players={players} isAdmin={false} plays={plays} />);
   expect(screen.getByText('guest')).toBeInTheDocument();
   expect(screen.getAllByText('100%')).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'AB' })).toHaveAttribute('href', '#/player/ab');
 });
 
 test('void confirmation describes what voiding actually changes', () => {
   const { voidEffect } = require('./AllGames');
-  expect(voidEffect({ counted: true, winnerIds: ['sg'] }, players)).toMatch(/win comes off the main table/);
+  expect(voidEffect({ counted: true, winnerIds: ['sg'] }, players)).toMatch(/win comes off the main scoreboard/);
   expect(voidEffect({ counted: true, winnerIds: ['ab'] }, players)).toMatch(/A guest won, so no table wins change/);
-  expect(voidEffect({ counted: false, winnerIds: ['sg'] }, players)).toMatch(/wasn't counted/);
+  expect(voidEffect({ counted: false, winnerIds: ['sg'] }, players)).toMatch(/wasn't on the main scoreboard/);
   expect(voidEffect({ test: true, winnerIds: ['t'] }, players)).toMatch(/test game/);
 });
 

@@ -10,7 +10,9 @@ import EditPlayerDialog from './EditPlayerDialog';
 //   Roster  — games and players; a ⋯ menu per row with Delete (players: Edit
 //             player; games: Set artwork, Scoring details). Admins see
 //             players' full names (playerNames: Map id → name) here.
-//   Score changes — the ScoreEvent ledger with Void (loads when first opened).
+//   Corrections — editing totals directly (the `corrections` node: the main
+//     table with −/+), then Score changes, the ScoreEvent ledger with Void
+//     (loads when first opened).
 //
 // Server work and notices stay in App: onAddGame(name) / onAddPlayer(initials, core, name)
 // / onEditPlayer(player, { initials, name }) resolve true on success (so the input clears), onRequestDelete(kind, item)
@@ -18,7 +20,7 @@ import EditPlayerDialog from './EditPlayerDialog';
 // true on success.
 export default function ManagePanel({
   games, players, gameScores = [],
-  onAddGame, onAddPlayer, onEditPlayer, playerNames = new Map(), onRequestDelete, onSetArt, onOpenScoring,
+  onAddGame, onAddPlayer, onEditPlayer, playerNames = new Map(), onRequestDelete, onSetArt, onOpenScoring, corrections = null,
   onVoid, onVoidPlay, plays, lastEvent, lastVoidedId,
 }) {
   const [newGame, setNewGame] = useState('');
@@ -168,7 +170,7 @@ export default function ManagePanel({
                   <Form.Check
                     className="mt-2 small"
                     id="new-player-core"
-                    label="Regular player (gets a column on the main table)"
+                    label="Regular player (gets a column on the main scoreboard)"
                     checked={newPlayerCore}
                     onChange={e => setNewPlayerCore(e.target.checked)}
                   />
@@ -200,7 +202,9 @@ export default function ManagePanel({
           </Row>
         </Tab>
 
-        <Tab eventKey="history" title="Score changes">
+        <Tab eventKey="corrections" title="Corrections">
+          {corrections}
+          <h3 className="manage-subtitle mt-4">Score changes</h3>
           <ScoreHistory onVoid={onVoid} onVoidPlay={onVoidPlay} plays={plays} lastEvent={lastEvent} lastVoidedId={lastVoidedId} />
         </Tab>
       </Tabs>

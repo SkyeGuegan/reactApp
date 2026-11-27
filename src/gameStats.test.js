@@ -37,8 +37,8 @@ test('game addresses use readable slugs and parse back', () => {
   expect(gameSlug('Sushi Go!')).toBe('sushi-go');
   expect(gameHref({ name: 'Phase10' })).toBe('#/game/phase10');
   expect(parseRoute('#/game/sushi-go')).toEqual({ page: 'game', slug: 'sushi-go' });
-  expect(parseRoute('')).toEqual({ page: 'board' });
-  expect(parseRoute('#/')).toEqual({ page: 'board' });
+  expect(parseRoute('')).toEqual({ page: 'board', view: 'scoreboard' });
+  expect(parseRoute('#/')).toEqual({ page: 'board', view: 'scoreboard' });
 });
 
 test('guests from recorded plays join the standings, with their own win rate', () => {

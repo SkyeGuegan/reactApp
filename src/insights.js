@@ -5,9 +5,12 @@
 import { mainScoreField, placings } from './scoring';
 
 // A game's live, non-test plays, oldest first.
+const oldestFirst = (a, b) => (a.playedAt < b.playedAt ? -1 : a.playedAt > b.playedAt ? 1 : 0);
 export const recordedPlays = (game, plays) => plays
   .filter(p => p.gameId === game.id && !p.voided && !p.test)
-  .sort((a, b) => (a.playedAt < b.playedAt ? -1 : a.playedAt > b.playedAt ? 1 : 0));
+  .sort(oldestFirst);
+// Every game's live, non-test plays, oldest first.
+export const allRecordedPlays = (plays) => plays.filter(p => !p.voided && !p.test).sort(oldestFirst);
 
 // Scores in a play by the main field, best first: [{ playerId, score }].
 function rankedScores(play, f) {
@@ -80,9 +83,13 @@ export function headToHead(game, plays, ids) {
 // Winning streaks over each player's own recorded games (a shared win counts).
 // Rows: { playerId, current, longest, from, to } (from/to: the longest
 // streak's first and last play dates), sorted by longest then current.
-export function winStreaks(game, plays) {
+export const winStreaks = (game, plays) => streaksIn(recordedPlays(game, plays));
+
+// The same over any list of plays, oldest first (e.g. every game: a player's
+// streak runs across games).
+export function streaksIn(list) {
   const rows = new Map();
-  for (const play of recordedPlays(game, plays)) {
+  for (const play of list) {
     for (const id of play.playerIds) {
       const r = rows.get(id) || { playerId: id, current: 0, longest: 0, from: null, to: null, start: null };
       if (play.winnerIds.includes(id)) {

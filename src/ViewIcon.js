@@ -1,10 +1,11 @@
 import React from 'react';
 
-// Icons for the view switch (Table · Trends · All games · Pick a game).
-// Paths from Lucide (https://lucide.dev, ISC license): table, trending-up,
-// list, dices. Decorative: the button text carries the meaning.
+// Icons for the nav (Scoreboard · Players · Game log · Trends · Pick a game ·
+// Manage). Paths from Lucide (https://lucide.dev, ISC license): table, users,
+// list, trending-up, dices, sliders-horizontal. Decorative: the button text
+// carries the meaning.
 const PATHS = {
-  table: (
+  scoreboard: (
     <>
       <rect width="18" height="18" x="3" y="3" rx="2" />
       <path d="M3 9h18" />
@@ -18,7 +19,28 @@ const PATHS = {
       <polyline points="16 7 22 7 22 13" />
     </>
   ),
-  games: (
+  players: (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  manage: (
+    <>
+      <line x1="21" x2="14" y1="4" y2="4" />
+      <line x1="10" x2="3" y1="4" y2="4" />
+      <line x1="21" x2="12" y1="12" y2="12" />
+      <line x1="8" x2="3" y1="12" y2="12" />
+      <line x1="21" x2="16" y1="20" y2="20" />
+      <line x1="12" x2="3" y1="20" y2="20" />
+      <line x1="14" x2="14" y1="2" y2="6" />
+      <line x1="8" x2="8" y1="10" y2="14" />
+      <line x1="16" x2="16" y1="18" y2="22" />
+    </>
+  ),
+  log: (
     <>
       <path d="M8 6h13" />
       <path d="M8 12h13" />

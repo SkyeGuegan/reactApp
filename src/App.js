@@ -10,6 +10,9 @@ import TrendsChart from './TrendsChart';
 import ManagePanel from './ManagePanel';
 import RecordPlayDialog from './RecordPlayDialog';
 import AllGames from './AllGames';
+import PlayersView from './PlayersView';
+import PlayerPage from './PlayerPage';
+import HomeSummary from './HomeSummary';
 import { corePlayers, playedCounts as computePlayedCounts, gamesWonByGuests } from './plays';
 import ThemeMenu from './ThemeMenu';
 import { useTheme } from './theme';
@@ -18,7 +21,7 @@ import GamePicker from './GamePicker';
 import ViewIcon from './ViewIcon';
 import ScoringFieldsDialog from './ScoringFieldsDialog';
 import ArtworkDialog from './ArtworkDialog';
-import { useRoute, gameSlug } from './route';
+import { useRoute, gameSlug, playerSlug, VIEWS } from './route';
 import useScoreboard from './useScoreboard';
 import { formatDelta } from './history';
 
@@ -71,12 +74,14 @@ function Scoreboard({ themeMode, onThemeChange }) {
     const { user, authStatus, signOut } = useAuthenticator((context) => [context.user, context.authStatus]);
     const { games, players, gameScores, plays, loading, loadError, addGame, addPlayer, increment, deleteGame, deletePlayer, voidEvent, recordPlay, voidPlay, setGameArt, setGameScoring, lastEvent, lastVoidedId, playerNames, loadPlayerNames, updatePlayerInfo } = useScoreboard(user);
     const [showSignIn, setShowSignIn] = useState(false);
-    const [view, setView] = useState('table'); // 'table' | 'trends' | 'games' | 'pick'
     const [showRecord, setShowRecord] = useState(false);
     const [recordGameId, setRecordGameId] = useState(''); // game preselected in Record a game
     const [artGame, setArtGame] = useState(null); // game page's Set artwork dialog
     const [scoringGame, setScoringGame] = useState(null); // Scoring details dialog
     const route = useRoute();
+    // Every view has an address (see route.js); the nav highlights where you are.
+    const view = route.page === 'board' ? route.view : null;
+    const activeTab = view || (route.page === 'player' ? 'players' : route.page === 'manage' ? 'manage' : null);
     // { kind: 'game' | 'player', item } when a delete is awaiting confirmation.
     const [pendingDelete, setPendingDelete] = useState(null);
     // { cell, label, from, to } while a decrease (− in edit mode) awaits confirmation.
@@ -95,7 +100,8 @@ function Scoreboard({ themeMode, onThemeChange }) {
     const isAuthenticated = authStatus === 'authenticated' && user;
     const inAdminGroup = useIsAdmin(isAuthenticated ? user : null);
     const isAdmin = isAuthenticated && inAdminGroup;
-    const editMode = isAdmin && editing && view === 'table';
+    // Editing totals (−/+) lives in Manage → Corrections.
+    const editMode = isAdmin && editing && route.page === 'manage';
 
     // Full names are admin-only on the server; fetch them once signed in as admin.
     useEffect(() => {
@@ -196,7 +202,7 @@ function Scoreboard({ themeMode, onThemeChange }) {
       try {
         const play = await recordPlay(data);
         const name = (id) => (data.allPlayers.find(p => p.id === id) || {}).initials || '?';
-        const where = play.test ? ' (test — admins only)' : play.counted ? '' : ' (not on the main table)';
+        const where = play.test ? ' (test — admins only)' : play.counted ? '' : ' (not on the main scoreboard)';
         notify('success', `Recorded ${play.gameName}: ${play.winnerIds.map(name).join(' & ')} won${where}.`, () => undoPlay(play));
         return true;
       } catch (err) {
@@ -287,6 +293,10 @@ function Scoreboard({ themeMode, onThemeChange }) {
     const tablePlayers = corePlayers(players);
     // The game whose page is open (matched by its name in the address).
     const currentGame = route.page === 'game' ? games.find(g => gameSlug(g.name) === route.slug) || null : null;
+    // The player whose page is open (by initials); the test player is admin-only.
+    const currentPlayer = route.page === 'player'
+      ? players.find(p => playerSlug(p) === route.slug && (isAdmin || !p.hidden)) || null
+      : null;
     const playedCounts = computePlayedCounts(games, plays);
     const guestWonGames = gamesWonByGuests(plays, players);
     const playerTotals = new Map(players.map(p => [p.id, 0]));
@@ -322,15 +332,20 @@ function Scoreboard({ themeMode, onThemeChange }) {
     <div className="App">
       <header className="App-header">
       <h1>
-        {/* Title + trophy go home: the board, on the Table view, scrolled to top. */}
-        <a href="#/" className="home-link" onClick={() => { setView('table'); window.scrollTo(0, 0); }}>
+        {/* Title + trophy go home: the Scoreboard, scrolled to top. */}
+        <a href="#/" className="home-link" onClick={() => window.scrollTo(0, 0)}>
           <Trophy />The Scoreboard
         </a>
       </h1>
       <div className="header-action">
       {isAuthenticated
       ? <>
-          <span>Hello, {user.username}</span>
+          {isAdmin && (
+            <Button variant="light" size="sm" className="header-record" onClick={() => { setRecordGameId(currentGame ? currentGame.id : ''); setShowRecord(true); }}>
+              ＋ Record<span className="d-none d-sm-inline"> a game</span>
+            </Button>
+          )}
+          <span className="header-hello">Hello, {user.username}</span>
           <Button variant="outline-light" size="sm" onClick={() => { signOut(); setShowSignIn(false); }}>Sign out</Button>
         </>
       : <Button variant="outline-light" size="sm" onClick={handleClick}>{showSignIn ? "Back to table" : "Sign in"}</Button>
@@ -341,6 +356,20 @@ function Scoreboard({ themeMode, onThemeChange }) {
       {(!showSignIn || isAuthenticated)
       ?
       <>
+      <nav className="board-controls" aria-label="Sections">
+        <ButtonGroup size="sm" className="view-nav">
+          {VIEWS.map(([v, href, label]) => (
+            <Button key={v} as="a" href={href} variant={activeTab === v ? 'dark' : 'outline-dark'} className="view-btn" aria-current={activeTab === v ? 'page' : undefined}>
+              <ViewIcon name={v} />{label}
+            </Button>
+          ))}
+          {isAdmin && (
+            <Button as="a" href="#/manage" variant={activeTab === 'manage' ? 'dark' : 'outline-dark'} className="view-btn" aria-current={activeTab === 'manage' ? 'page' : undefined}>
+              <ViewIcon name="manage" />Manage
+            </Button>
+          )}
+        </ButtonGroup>
+      </nav>
       {route.page === 'game' ? (
         <div className="board-card game-card">
           {loading
@@ -360,59 +389,62 @@ function Scoreboard({ themeMode, onThemeChange }) {
                 />
               : <div className="p-3 text-start"><a href="#/" className="game-back">← Back to the scoreboard</a><p className="mt-3 mb-0">That game isn't on the scoreboard.</p></div>}
         </div>
+      ) : route.page === 'player' ? (
+        <div className="board-card game-card">
+          {loading
+            ? <p className="p-3 text-muted mb-0">Loading…</p>
+            : currentPlayer
+              ? <PlayerPage
+                  player={currentPlayer}
+                  players={players}
+                  corePlayers={tablePlayers}
+                  games={sortedGames}
+                  gameScores={gameScores}
+                  plays={plays}
+                  playedCounts={playedCounts}
+                  isAdmin={isAdmin}
+                  playerNames={playerNames}
+                />
+              : <div className="p-3 text-start"><a href="#/players" className="game-back">← Players</a><p className="mt-3 mb-0">That player isn't on the scoreboard.</p></div>}
+        </div>
+      ) : route.page === 'manage' ? (
+        !isAdmin && (
+          <div className="board-card">
+            <p className="p-3 mb-0 text-start">Manage is for admins{isAuthenticated ? '.' : ' — sign in to use it.'}</p>
+          </div>
+        )
       ) : (
-      <>
-      <div className="board-controls">
-        <ButtonGroup size="sm">
-          <Button variant={view === 'table' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('table')}><ViewIcon name="table" />Table</Button>
-          <Button variant={view === 'trends' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('trends')}><ViewIcon name="trends" />Trends</Button>
-          <Button variant={view === 'games' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('games')}><ViewIcon name="games" />All games</Button>
-          <Button variant={view === 'pick' ? 'dark' : 'outline-dark'} className="view-btn" onClick={() => setView('pick')}><ViewIcon name="pick" />Pick a game</Button>
-        </ButtonGroup>
-      </div>
       <div className="board-card">
-      {/* Admin toolbar: the Edit action sits with the table it changes; while
-          editing it becomes a status bar so the mode is unmistakable. */}
-      {isAdmin && view === 'table' && !loading && (
-        editMode
-          ? (
-            <div className="board-toolbar editing" role="status">
-              <span>✎ Editing — changes save instantly</span>
-              <Button size="sm" variant="dark" onClick={toggleEditing}>Done</Button>
-            </div>
-          )
-          : (
-            <div className="board-toolbar">
-              <Button size="sm" variant="dark" onClick={() => { setRecordGameId(''); setShowRecord(true); }}>＋ Record a game</Button>
-              <Button size="sm" variant="outline-secondary" onClick={toggleEditing}>✎ Edit scores</Button>
-            </div>
-          )
-      )}
-      {view === 'table'
-        ? <TableComponent
-            games={sortedGames}
-            players={sortedPlayers}
-            gameScores={gameScores}
-            loading={loading}
-            error={loadError}
-            editing={editMode}
-            onIncrement={handleIncrement}
-            playedCounts={playedCounts}
-            guestWonGames={guestWonGames}
-          />
-        : view === 'trends'
-          ? <TrendsChart exactDates={isAdmin} />
-          : view === 'pick'
-            ? <GamePicker
-                games={games}
-                plays={plays}
-                isAdmin={isAdmin}
-                onRecord={(gameId) => { setRecordGameId(gameId); setShowRecord(true); }}
-                onAddGame={handleAddGame}
-              />
-            : <AllGames plays={plays} players={players} games={games} gameScores={gameScores} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
+      {view === 'scoreboard'
+        ? <>
+            {!loading && !loadError && (
+              <HomeSummary games={games} players={players} corePlayers={tablePlayers} gameScores={gameScores} plays={plays} playedCounts={playedCounts} isAdmin={isAdmin} />
+            )}
+            <TableComponent
+              games={sortedGames}
+              players={sortedPlayers}
+              gameScores={gameScores}
+              loading={loading}
+              error={loadError}
+              onIncrement={handleIncrement}
+              playedCounts={playedCounts}
+              guestWonGames={guestWonGames}
+            />
+          </>
+        : view === 'players'
+          ? <PlayersView plays={plays} players={players} games={games} gameScores={gameScores} isAdmin={isAdmin} />
+          : view === 'trends'
+            ? <TrendsChart exactDates={isAdmin} />
+            : view === 'pick'
+              ? <GamePicker
+                  games={games}
+                  plays={plays}
+                  isAdmin={isAdmin}
+                  onRecord={(gameId) => { setRecordGameId(gameId); setShowRecord(true); }}
+                  onAddGame={handleAddGame}
+                />
+              : <AllGames plays={plays} players={players} games={games} isAdmin={isAdmin} onVoid={isAdmin ? handleVoidPlay : undefined} />}
       </div>
-      </>
       )}
       </>
       :
@@ -420,9 +452,39 @@ function Scoreboard({ themeMode, onThemeChange }) {
       <Authenticator hideSignUp />
       </div>
       }
-      {isAdmin && route.page !== 'game'
+      {isAdmin && route.page === 'manage'
       ?
       <ManagePanel
+        corrections={(
+          <>
+            <p className="small text-muted text-start mb-2">
+              Recording a game is the normal way to add a win. Use this only to fix a total that's wrong; every change is listed under Score changes below and can be voided.
+            </p>
+            {editMode
+              ? (
+                <div className="board-toolbar editing" role="status">
+                  <span>✎ Editing — changes save instantly</span>
+                  <Button size="sm" variant="dark" onClick={toggleEditing}>Done</Button>
+                </div>
+              )
+              : (
+                <div className="board-toolbar">
+                  <Button size="sm" variant="outline-secondary" onClick={toggleEditing}>✎ Edit totals</Button>
+                </div>
+              )}
+            <TableComponent
+              games={sortedGames}
+              players={sortedPlayers}
+              gameScores={gameScores}
+              loading={loading}
+              error={loadError}
+              editing={editMode}
+              onIncrement={handleIncrement}
+              playedCounts={playedCounts}
+              guestWonGames={guestWonGames}
+            />
+          </>
+        )}
         games={sortedGames}
         players={rosterPlayers}
         gameScores={gameScores}

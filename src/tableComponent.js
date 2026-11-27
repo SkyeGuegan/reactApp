@@ -3,7 +3,7 @@ import Spinner from 'react-bootstrap/Spinner';
 import './App.css';
 
 import Table from 'react-bootstrap/Table';
-import { gameHref } from './route';
+import { gameHref, playerHref } from './route';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Renders a dynamic scoreboard: one column per player (from props.players),
@@ -147,7 +147,7 @@ function tableComponent(props) {
             <th>Game</th>
             {players.map((p, i) => (
               <th key={p.id} style={playerCol}>
-                <span>{p.initials}</span>{isLeader(i) ? ' 👑' : ''}
+                <a className="player-link" href={playerHref(p)} title={`${p.initials}: record in every game`}>{p.initials}</a>{isLeader(i) ? ' 👑' : ''}
               </th>
             ))}
             {playedCounts && <th className="played-col" title="Games played with all regulars at the table">Played</th>}
