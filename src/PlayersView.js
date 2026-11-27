@@ -3,6 +3,7 @@ import { Table, Button, ButtonGroup } from 'react-bootstrap';
 import { everyoneStats, allTimeStats, fmtWins } from './plays';
 import { fmtPlayDate } from './dates';
 import { playerHref } from './route';
+import { splitOccasional, OccasionalToggle } from './Occasional';
 
 // The Players view: everyone's record, each linking to their page.
 //   All time: every game we know of — before recording started only the
@@ -11,9 +12,13 @@ import { playerHref } from './route';
 // Test plays never count.
 export default function PlayersView({ plays, players, games = [], gameScores = [], isAdmin = false }) {
   const [scope, setScope] = useState('all'); // 'all' | 'recorded'
+  const [showOccasional, setShowOccasional] = useState(false);
   const stats = scope === 'all' ? allTimeStats(players, plays, games, gameScores) : everyoneStats(players, plays);
   const real = plays.filter(p => !p.voided && !p.test).sort((a, b) => (a.playedAt < b.playedAt ? -1 : 1));
   const since = real.length ? fmtPlayDate(real[0].playedAt, isAdmin) : null;
+  // Guests with a single game are folded away unless asked for.
+  const { shown, folded } = splitOccasional(stats, r => !r.player.core, r => r.played);
+  const rows = showOccasional ? stats : shown;
 
   return (
     <div className="p-2 text-start">
@@ -31,7 +36,7 @@ export default function PlayersView({ plays, players, games = [], gameScores = [
           <Table size="sm" responsive className="mb-2 all-games-stats">
             <thead><tr><th>Player</th><th className="text-center">Played</th><th className="text-center">Wins</th><th className="text-center">Win rate</th></tr></thead>
             <tbody>
-              {stats.map(r => (
+              {rows.map(r => (
                 <tr key={r.player.id}>
                   <td>
                     <a className="player-link fw-semibold" href={playerHref(r.player)}>{r.player.initials}</a>
@@ -44,6 +49,7 @@ export default function PlayersView({ plays, players, games = [], gameScores = [
               ))}
             </tbody>
           </Table>
+          <OccasionalToggle count={folded.length} open={showOccasional} onToggle={() => setShowOccasional(v => !v)} />
           <p className="text-muted small mb-0">
             {scope === 'all'
               ? <>All time: every game we know of. Games before {since} kept only the winner, so they count as games between the regulars; later games are recorded individually, including guests. </>

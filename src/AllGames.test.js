@@ -27,6 +27,7 @@ test('games where a regular was missing are labelled in the log and counted in P
   render(<AllGames players={players} isAdmin={false} plays={plays} />);
   expect(screen.getByText('not on scoreboard')).toBeInTheDocument();
   render(<PlayersView players={players} isAdmin={false} plays={plays} />);
+  require('@testing-library/react').fireEvent.click(screen.getByRole('button', { name: /occasional guest/ })); // AB has 1 game
   expect(screen.getByText('guest')).toBeInTheDocument();
   expect(screen.getAllByText('100%')).toHaveLength(1);
   expect(screen.getByRole('link', { name: 'AB' })).toHaveAttribute('href', '#/player/ab');
@@ -64,4 +65,18 @@ test('All games: scored games list one player per line, best first; others stay 
   expect(lines).toEqual(['MG|Nomads|120', 'SG|Witches|100']);
   const plain = screen.getAllByRole('cell').find(c => c.textContent === 'SG, MG');
   expect(plain.querySelector('strong').textContent).toBe('SG'); // winner in bold (Won is hidden on phones)
+});
+
+test('Players: guests with a single game are folded behind a link', () => {
+  const { fireEvent } = require('@testing-library/react');
+  const plays = [
+    play({ playerIds: ['sg', 'mg', 'ni', 'ab'], winnerIds: ['ab'], counted: true }),
+    play({ playerIds: ['sg', 'mg', 'ni'], winnerIds: ['sg'], counted: true }),
+  ];
+  render(<PlayersView players={players} isAdmin={false} plays={plays} />);
+  expect(screen.queryByRole('link', { name: 'AB' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Show 1 occasional guest (1 game)' }));
+  expect(screen.getByRole('link', { name: 'AB' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Hide occasional guests' }));
+  expect(screen.queryByRole('link', { name: 'AB' })).toBeNull();
 });

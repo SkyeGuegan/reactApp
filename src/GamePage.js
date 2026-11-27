@@ -12,6 +12,7 @@ import { playerHref } from './route';
 import SetupTag from './SetupTag';
 import Tile from './Tile';
 import { sortRows, activeSort, nextSort, SortHead } from './sortTable';
+import { splitOccasional, OccasionalToggle } from './Occasional';
 
 // Choices with fewer games than this can be hidden from a choice table, so a
 // single lucky game doesn't top the win rates.
@@ -41,9 +42,10 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
   const [psort, setPsort] = useState({ key: 'wins', dir: 'desc' }); // All recorded players
   const [hideFew, setHideFew] = useState(true);
   const [showAllRecent, setShowAllRecent] = useState(false);
+  const [showOccasional, setShowOccasional] = useState(false); // guests with a single game
   useEffect(() => setArtFailed(false), [game.imageUrl]);
   useEffect(() => {
-    setCount(null); setMode('table'); setSort({ key: 'wins', dir: 'desc' }); setPsort({ key: 'wins', dir: 'desc' }); setHideFew(true); setShowAllRecent(false);
+    setCount(null); setMode('table'); setSort({ key: 'wins', dir: 'desc' }); setPsort({ key: 'wins', dir: 'desc' }); setHideFew(true); setShowAllRecent(false); setShowOccasional(false);
   }, [game.id]);
   useEffect(() => {
     const prev = document.title;
@@ -146,7 +148,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
       <Table size="sm" className="game-standings mb-1">
         <thead><tr><th>Player</th><th className="text-center">Played</th><th className="text-center">Wins</th><th className="text-center">Win rate</th><th className="w-50" aria-hidden="true" /></tr></thead>
         <tbody>
-          {standings.map(r => (
+          {(showOccasional ? standings : splitOccasional(standings, r => r.guest, r => r.played).shown).map(r => (
             <tr key={r.player.id}>
               <td className="fw-semibold">
                 <a className="player-link" href={playerHref(r.player)}>{r.player.initials}</a>{leaderIds.has(r.player.id) && ' 👑'}
@@ -162,6 +164,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
           ))}
         </tbody>
       </Table>
+      <OccasionalToggle count={splitOccasional(standings, r => r.guest, r => r.played).folded.length} open={showOccasional} onToggle={() => setShowOccasional(v => !v)} />
       <p className="text-muted small">
         The main scoreboard: wins ÷ games played with all the regulars.
         {hasGuests && ' Guests count only individually recorded games.'}
@@ -192,7 +195,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
         <Table size="sm" responsive className="small mb-1 stats-table">
           <SortHead cols={cols} col={col} dir={dir} onSort={c => setPsort(prev => nextSort(prev, c))} />
           <tbody>
-            {sortRows(people, col.get, dir).map(r => (
+            {sortRows(showOccasional ? people : splitOccasional(people, r => !coreIds.has(r.playerId), r => r.played).shown, col.get, dir).map(r => (
               <tr key={r.playerId}>
                 <td className="fw-semibold text-nowrap">{byPlayer.get(r.playerId) ? <a className="player-link" href={playerHref(byPlayer.get(r.playerId))}>{name(r.playerId)}</a> : name(r.playerId)}{!coreIds.has(r.playerId) && <span className="text-muted small fw-normal ms-2">guest</span>}</td>
                 <td className="text-center">{r.played}</td>
@@ -211,6 +214,7 @@ export default function GamePage({ game, corePlayers, players, gameScores, plays
             ))}
           </tbody>
         </Table>
+        <OccasionalToggle count={splitOccasional(people, r => !coreIds.has(r.playerId), r => r.played).folded.length} open={showOccasional} onToggle={() => setShowOccasional(v => !v)} />
         <p className="text-muted small">
           Tap a column to sort. Every recorded {n ? `${n}-player ` : ''}game, including ones not on the main scoreboard{earlier > 0 ? ` (the ${earlier} earlier ${earlier === 1 ? 'game' : 'games'} kept only the winner, so they're only on the main scoreboard)` : ''}.
         </p>
