@@ -92,6 +92,14 @@ export const TERRA_MYSTICA_FACTIONS = [
   { name: 'Riverwalkers', color: 'any' },
   { name: 'Shapeshifters', color: 'any' },
 ];
+// Heroes of Barcadia heroes we own: base game (6), Party Pack (2) and Heroes
+// for Hire (5; Biggswigg plays with his rat, Chaser).
+export const BARCADIA_HEROES = [
+  'Keggar the Barbeerian', 'Merlo the Saucerer', 'Flaskian the Concealed', 'Absinthia of Wormwood',
+  'Sir Drankalot the Inebriated', 'Intoxica the Necromixer',
+  'Maltilda the Stout-Hearted', 'Tipple the Half Pint',
+  'Sip-Jin the Drunken Fist', 'Biggswigg the Buzzkiller', 'Ontaprielle the Alechemist', 'Dram the Aged & Oaken', 'Brewtus the Barkeep',
+];
 // Root's base factions and their player colours; each faction once per game.
 export const ROOT_FACTIONS = [
   { name: 'Marquise de Cat', color: '#e07b2a' },
@@ -137,6 +145,11 @@ export const SUGGESTED = {
   ],
   hearts: [lowPoints],                    // game ends when someone reaches 100
   'muffin time': [],                      // win = exactly 10 cards; nothing to score
+  // Race: first to 3 power-ups who then beats the Grand Drink Guardian; no score.
+  // Each hero has one cup, so one player per hero.
+  'heroes of barcadia': [{ key: 'hero', label: 'Hero', type: 'text', unique: true, options: BARCADIA_HEROES }],
+  // Race through the checkpoints in order; others rank by how far they got.
+  'robo rally': [{ key: 'checkpoints', label: 'Checkpoints', type: 'number' }],
   phase10: [
     { key: 'phase', label: 'Phase reached', type: 'number' },
     lowPoints,                            // tie-break: fewest points

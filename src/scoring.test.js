@@ -173,3 +173,13 @@ describe('richer stats (Terra Mystica style)', () => {
     expect(faction.options.every(o => onlineRatesFor(game, faction).rates[o.name] > 0)).toBe(true);
   });
 });
+
+test('suggested fields for Heroes of Barcadia (hero) and Robo Rally (checkpoints, most wins)', () => {
+  const [hero] = suggestedFor({ name: 'Heroes of Barcadia' });
+  expect(hero).toMatchObject({ key: 'hero', type: 'text', unique: true });
+  expect(hero.options).toHaveLength(13);
+  expect(hero.options).toContain('Keggar the Barbeerian');
+  const [cp] = suggestedFor({ name: 'Robo Rally' });
+  expect(cp).toMatchObject({ key: 'checkpoints', type: 'number' });
+  expect(cp.lowWins).toBeUndefined();
+});
