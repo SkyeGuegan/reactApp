@@ -93,12 +93,22 @@ export const TERRA_MYSTICA_FACTIONS = [
   { name: 'Shapeshifters', color: 'any' },
 ];
 // Heroes of Barcadia heroes we own: base game (6), Party Pack (2) and Heroes
-// for Hire (5; Biggswigg plays with his rat, Chaser).
+// for Hire (5; Biggswigg plays with his rat, Chaser). Each cup's art is
+// printed in one colour; that's the hero's colour here.
 export const BARCADIA_HEROES = [
-  'Keggar the Barbeerian', 'Merlo the Saucerer', 'Flaskian the Concealed', 'Absinthia of Wormwood',
-  'Sir Drankalot the Inebriated', 'Intoxica the Necromixer',
-  'Maltilda the Stout-Hearted', 'Tipple the Half Pint',
-  'Sip-Jin the Drunken Fist', 'Biggswigg the Buzzkiller', 'Ontaprielle the Alechemist', 'Dram the Aged & Oaken', 'Brewtus the Barkeep',
+  { name: 'Keggar the Barbeerian', color: '#d63a2f' },
+  { name: 'Merlo the Saucerer', color: '#f2c22e' },
+  { name: 'Flaskian the Concealed', color: '#35b8e0' },
+  { name: 'Absinthia of Wormwood', color: '#a8d13d' },
+  { name: 'Sir Drankalot the Inebriated', color: '#ef8a1e' },
+  { name: 'Intoxica the Necromixer', color: '#b0306a' },
+  { name: 'Maltilda the Stout-Hearted', color: '#8a5a3c' },
+  { name: 'Tipple the Half Pint', color: '#f27ab8' },
+  { name: 'Sip-Jin the Drunken Fist', color: '#3a3a3a' },
+  { name: 'Biggswigg the Buzzkiller', color: '#1f9e93' },
+  { name: 'Ontaprielle the Alechemist', color: '#3b5bd6' },
+  { name: 'Dram the Aged & Oaken', color: '#4f9a2c' },
+  { name: 'Brewtus the Barkeep', color: '#8c8a2e' },
 ];
 // Root's base factions and their player colours; each faction once per game.
 export const ROOT_FACTIONS = [

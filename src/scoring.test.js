@@ -178,7 +178,8 @@ test('suggested fields for Heroes of Barcadia (hero) and Robo Rally (checkpoints
   const [hero] = suggestedFor({ name: 'Heroes of Barcadia' });
   expect(hero).toMatchObject({ key: 'hero', type: 'text', unique: true });
   expect(hero.options).toHaveLength(13);
-  expect(hero.options).toContain('Keggar the Barbeerian');
+  expect(hero.options.map(o => o.name)).toContain('Keggar the Barbeerian');
+  expect(new Set(hero.options.map(o => o.color)).size).toBe(13); // every hero has its own colour
   const [cp] = suggestedFor({ name: 'Robo Rally' });
   expect(cp).toMatchObject({ key: 'checkpoints', type: 'number' });
   expect(cp.lowWins).toBeUndefined();
